@@ -10,10 +10,10 @@ The database scheme will not work without that extension. It's mainly used to ge
 
 
 ### SQL script
-To create the database scheme please use the sql script "scheme.sql" in the sql folder.
-Please note that this scheme does not add the ownership to the database.
+To create the database schema please use the sql script "schema.sql" in the sql folder.
+Please note that this schema does not add the ownership to the database.
 
 Refer to the PostgREST [Tutorial Guide](https://postgrest.org/en/v7.0.0/tutorials/tut1.html) to set up the needed permissions.
 
-### scheme
-![Scheme](https://github.com/TactileVision/TactJam-server/database/scheme.png)
+### schema
+![schema](https://raw.githubusercontent.com/TactileVision/TactJam-server/main/database/schema.png)
