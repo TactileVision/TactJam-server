@@ -4,11 +4,12 @@ create table email_updates
         constraint email_updates_pk
             primary key,
     user_id           uuid                     not null,
-    old_email         text                     not null,
+    old_email         text,
     new_email         text                     not null,
     confirm_expiry_at timestamp with time zone not null,
     token             text                     not null,
-    used              boolean default false    not null
+    confirmed         boolean default false    not null,
+    current           boolean default false    not null
 );
 
 comment on column email_updates.user_id is 'foreign key to table users';
@@ -19,9 +20,11 @@ comment on column email_updates.new_email is 'new email to add to user if confir
 
 comment on column email_updates.confirm_expiry_at is 'date where the token / transaction will get invalid';
 
-comment on column email_updates.token is 'token for email reset';
+comment on column email_updates.token is 'hash of the email token used to confirming the email';
 
-comment on column email_updates.used is 'Was the email changed from old to now?';
+comment on column email_updates.confirmed is 'Was the email changed from old to now?';
+
+comment on column email_updates.current is 'indicated that this email is the current one';
 
 create unique index email_updates_number_uindex
     on email_updates (number);
@@ -106,22 +109,21 @@ create table teams
 
 create table users
 (
-    id              uuid    default gen_random_uuid() not null
+    id            uuid    default gen_random_uuid() not null
         constraint users_pk
             primary key,
-    username        text                              not null,
-    email           text                              not null,
-    name            text                              not null,
-    password        text                              not null,
-    created_at      timestamp with time zone          not null,
-    updated_at      timestamp with time zone          not null,
-    last_login_at   timestamp with time zone,
-    email_confirmed boolean default false             not null,
-    email_token     text,
-    team_id         uuid
+    username      text                              not null,
+    email         text                              not null,
+    name          text                              not null,
+    password      text                              not null,
+    created_at    timestamp with time zone          not null,
+    updated_at    timestamp with time zone          not null,
+    last_login_at timestamp with time zone,
+    team_id       uuid
         constraint users_teams_id_fk
             references teams
-            on update cascade on delete cascade
+            on update cascade on delete cascade,
+    banned        boolean default false             not null
 );
 
 comment on table users is 'table for all users';
@@ -142,11 +144,9 @@ comment on column users.updated_at is 'date when the account information was upd
 
 comment on column users.last_login_at is 'date when the user logged in the last time';
 
-comment on column users.email_confirmed is 'account should only be valid if the email is confirmed';
-
-comment on column users.email_token is 'hash of the email token used to confirming the email';
-
 comment on column users.team_id is 'foreign key of table teams';
+
+comment on column users.banned is 'a value to check if the user is banned or not';
 
 create unique index users_id_uindex
     on users (id);
