@@ -5,7 +5,7 @@ import dbServer from "../database/dbServer.js";
  * Later this can be easily adjusted to check for permissions.
  */
 export default (opts = {}) => {
-  const { debug, key = "user", password = false } = opts;
+  const { debug, admin = false, key = "user", password = false } = opts;
 
   return async function (ctx, next) {
     try {
@@ -31,7 +31,13 @@ export default (opts = {}) => {
         ctx.throw(401, "User is banned");
       }
 
-      // here could be a permission check
+      // check if admin permission is needed
+      if (!user.admin) {
+        // user is not an admin, check if we need the permission level
+        if (admin) {
+          ctx.throw(401, "Insufficient permissions");
+        }
+      }
 
       // create object for the ctx to work with
       ctx.state[key] = {

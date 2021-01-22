@@ -123,7 +123,8 @@ create table users
         constraint users_teams_id_fk
             references teams
             on update cascade on delete cascade,
-    banned        boolean default false             not null
+    banned        boolean default false             not null,
+    admin         boolean default false             not null
 );
 
 comment on table users is 'table for all users';

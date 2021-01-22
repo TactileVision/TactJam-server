@@ -1,10 +1,10 @@
 import Router from "koa-router";
 import validator from "validator";
 import koaBody from "koa-body";
-// import jwtAuth from "koa-jwt"
+import jwtAuth from "koa-jwt";
 
-// import permission from "../auth/permissionMiddleware.js";
-// import jwtAuthOptions from "../auth/jwtAuthOptions.js";
+import permission from "../auth/permissionMiddleware.js";
+import jwtAuthOptions from "../auth/jwtAuthOptions.js";
 import dbServer from "../database/dbServer.js";
 
 import { generateHash } from "../auth/password.js"; // compareHash
@@ -13,6 +13,77 @@ import { v4 as uuidv4 } from "uuid";
 import getTomorrow from "../helper/getTomorrow.js";
 
 const router = new Router({ prefix: "/user" });
+
+/**
+ * @swagger
+ * /user/{userId}:
+ *    get:
+ *      description: Get a users by his ID. Only admins are allowed to use this operation.
+ *      summary: get user
+ *      operationId: getUserById
+ *      tags:
+ *        - user
+ *      parameters:
+ *      - in: path
+ *        name: userId
+ *        schema:
+ *          type: uuid
+ *        required: true
+ *        description: Unique ID of the user
+ *      produces:
+ *        - application/json
+ *      security:
+ *        - cookieAuth: []
+ *      responses:
+ *        200:
+ *          schema:
+ *            type: object
+ *            properties:
+ *              id:
+ *                type: uuid
+ *              username:
+ *                type: string
+ *              name:
+ *                type: string
+ *              isAdmin:
+ *                type: bool
+ *              banned:
+ *                type: bool
+ *              teamId:
+ *                type: uuid
+ *          description: >
+ *            Returns the user, if there is a user with the id
+ *        400:
+ *          description: No user found with that userId.
+ *        401:
+ *          description: Authentication Error
+ */
+router.get(
+  "/:id",
+  jwtAuth(jwtAuthOptions),
+  permission({ admin: true }),
+  async (ctx) => {
+    // get user from db
+    const response = await dbServer.get(`/users?id=eq.${ctx.params.id}`);
+
+    // check if there is one user
+    if (response.data.length !== 1) {
+      ctx.throw(400, "No unique user found");
+    }
+
+    const user = response.data[0];
+
+    // return the user
+    ctx.body = {
+      id: user.id,
+      username: user.username,
+      name: user.name,
+      banned: user.banned,
+      isAdmin: user.is_admin,
+      teamId: user.team_id,
+    };
+  }
+);
 
 /**
  * @swagger
@@ -167,11 +238,77 @@ router.post("/register", koaBody(), async (ctx) => {
   ctx.status = 201;
 });
 
+/**
+ * @swagger
+ * /user/{userId}:
+ *    put:
+ *      description: >
+ *        Update user values.
+ *        Only admins can edit others, but you can edit yourself.
+ *      summary: update user
+ *      operationId: updateUser
+ *      tags:
+ *        - user
+ *      parameters:
+ *      - in: path
+ *        name: userId
+ *        schema:
+ *          type: uuid
+ *        required: true
+ *        description: Unique ID of the user
+ *      requestBody:
+ *        required: true
+ *        description: A JSON object containing the information to update
+ *        content:
+ *          application/json:
+ *            schema:
+ *              type: object
+ *              properties:
+ *                username:
+ *                  type: string
+ *                  minLength: 4
+ *                  maxLength: 128
+ *                  description: Alpha Numeric only! For login purposes only, does not show anywhere.
+ *                email:
+ *                  type: email
+ *                  description: E-Mail needed for password reset.
+ *                password:
+ *                  type: string
+ *                  minLength: 8
+ *                  maxLength: 128
+ *                password2:
+ *                  type: string
+ *                  minLength: 8
+ *                  maxLength: 128
+ *                  description: need to be the same then password
+ *                name:
+ *                  type: string
+ *                  minLength: 4
+ *                  maxLength: 128
+ *                  description: Alpha Numeric only! Visible name on the platform.
+ *            example:
+ *              username: username123456
+ *              email: username123456@mail.com
+ *              password:
+ *              password2:
+ *              name: Miyako
+ *      security:
+ *        - cookieAuth: []
+ *      responses:
+ *        200:
+ *          description: Successfully updated.
+ *        400:
+ *          description: Invalid request
+ *        401:
+ *          description: Authentication Error
+ */
+// TODO
+
 export default router;
 
 // ---- helper functions ----
 // function to check if username and email is unique
-async function validateUniqueValues(ctx, username, email) {
+async function validateUniqueValues(ctx, username, email, a) {
   let queryString = "/users?or(";
 
   if (username != null) {
