@@ -279,15 +279,9 @@ router.post("/register", koaBody(), async (ctx) => {
  *                  type: string
  *                  format: email
  *                  description: E-Mail needed for password reset.
- *                password:
+ *                teamId:
  *                  type: string
- *                  minLength: 8
- *                  maxLength: 128
- *                password2:
- *                  type: string
- *                  minLength: 8
- *                  maxLength: 128
- *                  description: need to be the same then password
+ *                  format: uuid
  *                name:
  *                  type: string
  *                  minLength: 4
@@ -296,13 +290,11 @@ router.post("/register", koaBody(), async (ctx) => {
  *            example:
  *              username: username123456
  *              email: username123456@mail.com
- *              password:
- *              password2:
  *              name: Miyako
  *      security:
  *        - cookieAuth: []
  *      responses:
- *        200:
+ *        204:
  *          description: Successfully updated.
  *        400:
  *          description: Invalid request
@@ -320,7 +312,7 @@ router.put(
       ctx.throw(400, "missing id");
     }
 
-    if (!validator.isUUID(ctx.params.id)) {
+    if (!validator.isUUID(userId)) {
       ctx.throw(400, "Invalid id");
     }
 
@@ -341,6 +333,7 @@ router.put(
     const username = ctx.request.body.username;
     const email = ctx.request.body.email;
     const name = ctx.request.body.name;
+    const teamId = ctx.request.body.teamId;
 
     // check username
     if (username != null) {
@@ -377,9 +370,22 @@ router.put(
       }
     }
 
+    // check teamId
+    if (teamId != null) {
+      if (!validator.isUUID(teamId)) {
+        ctx.throw(400, "Invalid TeamId");
+      }
+    }
+
+    const teamIdResponse = dbServer.get(`/teams?id=eq.${teamId}`);
+    if (teamIdResponse.data.length !== 1) {
+      ctx.throw(400, "Invalid TeamId");
+    }
+
     const patchObj = {
       username,
       name,
+      teamId,
       updated_at: new Date(),
     };
 
@@ -535,6 +541,10 @@ router.patch(
  *          description: >
  *            Successfully deleted user with the provided ID.
  *            Returns 204 even if nothing got deleted.
+ *        400:
+ *          description: Invalid request
+ *        401:
+ *          description: Authentication Error
  */
 router.delete(
   "/:id",
