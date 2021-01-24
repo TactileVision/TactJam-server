@@ -7,7 +7,7 @@ import permission from "../auth/permissionMiddleware.js";
 import jwtAuthOptions from "../auth/jwtAuthOptions.js";
 import dbServer from "../database/dbServer.js";
 
-import { generateHash } from "../auth/password.js"; // compareHash
+import { generateHash, compareHash } from "../auth/password.js"; // compareHash
 import { v4 as uuidv4 } from "uuid";
 // import { sendEmailConfirmation } from "../mail/index.js";
 import getTomorrow from "../helper/getTomorrow.js";
@@ -27,7 +27,8 @@ const router = new Router({ prefix: "/user" });
  *      - in: path
  *        name: userId
  *        schema:
- *          type: uuid
+ *          type: string
+ *          format: uuid
  *        required: true
  *        description: Unique ID of the user
  *      produces:
@@ -36,23 +37,27 @@ const router = new Router({ prefix: "/user" });
  *        - cookieAuth: []
  *      responses:
  *        200:
- *          schema:
- *            type: object
- *            properties:
- *              id:
- *                type: uuid
- *              username:
- *                type: string
- *              name:
- *                type: string
- *              isAdmin:
- *                type: bool
- *              banned:
- *                type: bool
- *              teamId:
- *                type: uuid
  *          description: >
  *            Returns the user, if there is a user with the id
+ *          content:
+ *            application/json:
+ *              schema:
+ *                type: object
+ *                properties:
+ *                  id:
+ *                    type: string
+ *                    format: uuid
+ *                  username:
+ *                    type: string
+ *                  name:
+ *                    type: string
+ *                  isAdmin:
+ *                    type: boolean
+ *                  banned:
+ *                    type: boolean
+ *                  teamId:
+ *                    type: string
+ *                    format: uuid
  *        400:
  *          description: No user found with that userId.
  *        401:
@@ -253,7 +258,8 @@ router.post("/register", koaBody(), async (ctx) => {
  *      - in: path
  *        name: userId
  *        schema:
- *          type: uuid
+ *          type: string
+ *          format: uuid
  *        required: true
  *        description: Unique ID of the user
  *      requestBody:
@@ -270,7 +276,8 @@ router.post("/register", koaBody(), async (ctx) => {
  *                  maxLength: 128
  *                  description: Alpha Numeric only! For login purposes only, does not show anywhere.
  *                email:
- *                  type: email
+ *                  type: string
+ *                  format: email
  *                  description: E-Mail needed for password reset.
  *                password:
  *                  type: string
@@ -302,8 +309,264 @@ router.post("/register", koaBody(), async (ctx) => {
  *        401:
  *          description: Authentication Error
  */
-// TODO
+router.put(
+  "/:id",
+  jwtAuth(jwtAuthOptions),
+  permission(),
+  koaBody(),
+  async (ctx) => {
+    const userId = ctx.params.id;
+    if (userId == null) {
+      ctx.throw(400, "missing id");
+    }
 
+    if (!validator.isUUID(ctx.params.id)) {
+      ctx.throw(400, "Invalid id");
+    }
+
+    // get user from db
+    const response = await dbServer.get(`/users?id=eq.${userId}`);
+
+    // check if there is one user
+    if (response.data.length !== 1) {
+      ctx.throw(400, "No unique user found");
+    }
+    const user = response.data[0];
+    // check if the user got admin permissions or if the user is himself
+    if (!ctx.state.user.admin && user.id !== ctx.state.user.id) {
+      ctx.throw(401, "Authentication error");
+    }
+
+    // validate input
+    const username = ctx.request.body.username;
+    const email = ctx.request.body.email;
+    const name = ctx.request.body.name;
+
+    // check username
+    if (username != null) {
+      if (
+        !validator.isLength(username, { min: 4, max: 128 }) ||
+        !validator.isAlphanumeric(username)
+      ) {
+        ctx.throw(400, "Invalid Username");
+      }
+    }
+
+    // check email
+    if (email != null) {
+      if (!validator.isEmail(email)) {
+        ctx.throw(400, "Invalid email");
+      }
+    }
+
+    // check name
+    if (name != null) {
+      if (
+        !validator.isLength(name, { min: 4, max: 128 }) ||
+        !validator.isAlphanumeric(name)
+      ) {
+        ctx.throw(400, "Invalid name");
+      }
+    }
+
+    // check if username/name/email is unique
+    if (username != null || email != null) {
+      const validation = await validateUniqueValues(ctx, username, email);
+      if (!validation.valid) {
+        ctx.throw(400, validation.msg);
+      }
+    }
+
+    const patchObj = {
+      username,
+      name,
+      updated_at: new Date(),
+    };
+
+    if (email != null) {
+      // email confirmation
+      const mailUuid = uuidv4();
+      const mailUuidHash = await generateHash(mailUuid);
+      const mailUuidHashString = mailUuidHash.toString("hex");
+
+      const emailPayload = {
+        user_id: user.id,
+        old_email: user.email,
+        new_email: email,
+        token: mailUuidHashString,
+        confirm_expiry_at: getTomorrow(),
+        confirmed: true, // this is only for testing purposes, this should be false!
+        current: true,
+      };
+
+      // save e-mail update
+      await dbServer.post("/email_updates", emailPayload);
+
+      console.log(email, user.name, mailUuid);
+
+      // send mail to user
+      // TODO EMAIL confirmation
+      // await sendEmailConfirmation(email, user.name, mailUuid, false);
+
+      patchObj.email = email; // this line should be deleted --> user needs to confirm mail
+    }
+
+    // update on db
+    await dbServer.patch(`/users?id=eq.${user.id}`, patchObj);
+
+    // return the user
+    ctx.status = 200;
+  }
+);
+
+/**
+ * @swagger
+ * /user/password:
+ *    patch:
+ *      description: >
+ *        Updates your own password
+ *      summary: update password
+ *      operationId: updatePassword
+ *      tags:
+ *        - user
+ *      parameters: []
+ *      requestBody:
+ *        required: true
+ *        description: A JSON object containing the information to update
+ *        content:
+ *          application/json:
+ *            schema:
+ *              type: object
+ *              properties:
+ *                oldPassword:
+ *                  type: string
+ *                  minLength: 8
+ *                  maxLength: 128
+ *                newPassword:
+ *                  type: string
+ *                  minLength: 8
+ *                  maxLength: 128
+ *                newPassword2:
+ *                  type: string
+ *                  minLength: 8
+ *                  maxLength: 128
+ *      security:
+ *        - cookieAuth: []
+ *      responses:
+ *        200:
+ *          description: Successfully updated.
+ *        400:
+ *          description: Invalid request
+ *        401:
+ *          description: Authentication Error
+ */
+router.patch(
+  "/password",
+  jwtAuth(jwtAuthOptions),
+  permission({ password: true }),
+  koaBody(),
+  async (ctx) => {
+    // validate input
+    const oldPassword = ctx.request.body.oldPassword;
+    let newPassword = ctx.request.body.newPassword;
+    const newPassword2 = ctx.request.body.newPassword2;
+
+    // check password
+    if (newPassword == null || oldPassword == null || newPassword2 == null) {
+      ctx.throw(400, "Password(s) missing");
+    }
+
+    if (newPassword !== newPassword2) {
+      ctx.throw(400, "Passwords does not match");
+    }
+
+    // check old password
+    const validPassword = await compareHash(
+      oldPassword,
+      ctx.state.user.password
+    );
+
+    if (!validPassword.valid) {
+      // password/combination is not valid
+      ctx.throw(401, "Invalid password");
+    }
+
+    // validate new password
+    if (!validator.isLength(newPassword, { min: 8, max: 128 })) {
+      ctx.throw(400, "New password is too long / short, see docs");
+    }
+    // generate new hash
+    const hash = await generateHash(newPassword);
+    const hashString = hash.toString("hex");
+    newPassword = hashString;
+
+    // update on db
+    await dbServer.patch(`/users?id=eq.${ctx.state.user.id}`, {
+      password: newPassword,
+      updated_at: new Date(),
+    });
+    ctx.status = 200;
+  }
+);
+
+/**
+ * @swagger
+ * /user/{userId}:
+ *    delete:
+ *      description: Use to delete an user. Only admins can delete users.
+ *      summary: delete an user
+ *      operationId: deleteUser
+ *      tags:
+ *        - user
+ *      parameters:
+ *      - in: path
+ *        name: userId
+ *        schema:
+ *          type: string
+ *          format: uuid
+ *        required: true
+ *        description: Unique ID of the user
+ *      produces:
+ *        - application/json
+ *      security:
+ *        - cookieAuth: []
+ *      responses:
+ *        204:
+ *          description: >
+ *            Successfully deleted user with the provided ID.
+ *            Returns 204 even if nothing got deleted.
+ */
+router.delete(
+  "/:id",
+  jwtAuth(jwtAuthOptions),
+  permission({ admin: true }),
+  async (ctx) => {
+    const id = ctx.params.id;
+    // check id
+    if (id == null) {
+      ctx.throw(400, "Id missing");
+    }
+
+    if (!validator.isUUID(id)) {
+      ctx.throw(400, "Id is not an UUID");
+    }
+
+    // check if the user is himself
+    if (id === ctx.state.user.id) {
+      ctx.throw(400, "You can't delete yourself.");
+    }
+
+    // delete the user
+    await dbServer.delete(`/users?id=eq.${ctx.params.id}`);
+    ctx.status = 204;
+  }
+);
+
+// TODO (low priority)
+// confirm email
+// check for Register & Update: confirmed: true --> Should be false
+
+// export router object
 export default router;
 
 // ---- helper functions ----

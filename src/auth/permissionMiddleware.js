@@ -44,6 +44,7 @@ export default (opts = {}) => {
         id: user.id,
         username: user.username,
         name: user.name,
+        admin: user.admin,
       };
 
       // add password hash if needed (for example updating)
