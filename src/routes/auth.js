@@ -31,6 +31,13 @@ const router = new Router({ prefix: "/auth" });
  *           type: string
  *           minLength: 8
  *           maxLength: 128
+ *     "LoginData":
+ *       type: object
+ *       properties:
+ *         name:
+ *           type: string
+ *         expires:
+ *           type: string
  */
 
 /**
@@ -58,13 +65,6 @@ const router = new Router({ prefix: "/auth" });
  *      security: []
  *      responses:
  *        200:
- *          schema:
- *            type: object
- *            properties:
- *              expires:
- *                type: date
- *              name:
- *                type: name
  *          description: >
  *            Successfully authenticated.
  *            The JWT is returned in a signed and secure cookie called "jwt".
@@ -73,6 +73,10 @@ const router = new Router({ prefix: "/auth" });
  *            Set-Cookie:
  *              schema:
  *                type: string
+ *          content:
+ *            application/json:
+ *              schema:
+ *                $ref: "#/components/schemas/LoginData"
  */
 router.post("/login", koaBody(), async (ctx) => {
   // validate login / password
@@ -197,6 +201,10 @@ router.post("/logout", jwtAuth(jwtAuthOptions), async (ctx) => {
  *            Set-Cookie:
  *              schema:
  *                type: string
+ *          content:
+ *            application/json:
+ *              schema:
+ *                $ref: "#/components/schemas/LoginData"
  */
 router.post("/renew", jwtAuth(jwtAuthOptions), permission(), async (ctx) => {
   const id = ctx.state.user.id;
@@ -246,22 +254,21 @@ router.post("/renew", jwtAuth(jwtAuthOptions), permission(), async (ctx) => {
  *            An E-Mail was send to the provided user-email IF there is an user with the login/email.
  */
 router.post("/forgot", koaBody(), async (ctx) => {
+  const login = ctx.request.body.login;
   // validate login
-  if (
-    ctx.request.body.login == null ||
-    !validator.isLength(ctx.request.body.login, { min: 4, max: 128 })
-  ) {
+  if (login == null || !validator.isLength(login, { min: 4, max: 128 })) {
     ctx.throw(400, "Login missing");
   }
 
   // check if its an email or a username
-  const isMail = validator.isEmail(ctx.request.body.login);
+  const isMail = validator.isEmail(login);
   const queryParam = isMail ? "email" : "username";
 
+  const checkQueryString =
+    "/users?" + queryParam + "=eq." + login.toLowerCase();
+
   // search for the user in the database
-  const dbResponse = await dbServer.get(
-    "/users?" + queryParam + "=eq." + ctx.request.body.login.toLowerCase()
-  );
+  const dbResponse = await dbServer.get(checkQueryString);
   // we dont found a user in our database
   if (dbResponse.data.length < 1) {
     // provide fake information to the client
@@ -275,11 +282,13 @@ router.post("/forgot", koaBody(), async (ctx) => {
   const user = dbResponse.data[0];
 
   // get the current date, to check if we got already an active password reset ongoing
-  const currentDate = new Date();
+  const currentDate = new Date().toUTCString();
+
+  const checkResetTableQueryString = `/password_resets?and=(user_id.eq.${user.id},expiry_at.gt."${currentDate}",used.is.false)`;
 
   // get the data for the user from the table password resets
   const passwordResetTableResponse = await dbServer.get(
-    `/password_resets?and(user_id=eq.${user.id},expiry_at.gt.${currentDate},used.is.false)`
+    checkResetTableQueryString
   );
 
   // check if we have an entry already, and if we do, then we dont do anything since the request is still ongoing
@@ -305,6 +314,7 @@ router.post("/forgot", koaBody(), async (ctx) => {
   // TODO mail service? sending the text for confirmation
   // send mail for Password reset
   // await sendPasswordReset(user.email, user.name, passwordUuid);
+  console.log(`user: ${user.email}, password-reset-uuid: ${passwordUuid}`);
 
   // respond to user
   ctx.status = 200;
@@ -329,9 +339,11 @@ router.post("/forgot", koaBody(), async (ctx) => {
  *              type: object
  *              properties:
  *                token:
- *                  type: uuid
+ *                  type: string
+ *                  format: uuid
  *                email:
- *                  type: email
+ *                  type: string
+ *                  format: email
  *                  description: E-Mail needed for password reset.
  *                password:
  *                  type: string
@@ -383,9 +395,10 @@ router.post("/set/password", koaBody(), async (ctx) => {
   const user = dbResponse.data[0];
 
   // we have an user, now search for the password reset table
-  const currentDate = new Date();
+  const currentDate = new Date().toUTCString();
+  const passwordResetQueryString = `/password_resets?and=(user_id.eq.${user.id},expiry_at.gt."${currentDate}",used.is.false)`;
   const passwordResetTableResponse = await dbServer.get(
-    `/password_resets?and(user_id=eq.${user.id},expiry_at.gt.${currentDate},used.is.false)`
+    passwordResetQueryString
   );
 
   // check if we got one result
@@ -408,8 +421,6 @@ router.post("/set/password", koaBody(), async (ctx) => {
   const hash = await generateHash(password);
   const hashString = hash.toString("hex");
   const payload = {
-    password_reset_token: null,
-    password_reset_expiry_at: null,
     password: hashString,
   };
 
@@ -418,7 +429,7 @@ router.post("/set/password", koaBody(), async (ctx) => {
 
   // update entry in our password reset table
   await dbServer.patch(
-    `/password_resets?and(user_id=eq.${user.id},expiry_at.gt.${currentDate},used.is.false)`,
+    `/password_resets?and=(user_id.eq.${user.id},expiry_at.gt."${currentDate}",used.is.false)`,
     {
       used: true,
     }

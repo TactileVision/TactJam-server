@@ -1,5 +1,6 @@
 import docsRouter from "./docs.js";
 import userRouter from "./user.js";
+import authRouter from "./auth.js";
 
 function setupRoutes(app) {
   // initialize docs router
@@ -7,6 +8,9 @@ function setupRoutes(app) {
 
   // initialize user router
   app.use(userRouter.routes()).use(userRouter.allowedMethods());
+
+  // initialize auth router
+  app.use(authRouter.routes()).use(authRouter.allowedMethods());
 }
 
 export default setupRoutes;

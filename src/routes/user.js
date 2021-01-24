@@ -308,8 +308,8 @@ export default router;
 
 // ---- helper functions ----
 // function to check if username and email is unique
-async function validateUniqueValues(ctx, username, email, a) {
-  let queryString = "/users?or(";
+async function validateUniqueValues(ctx, username, email) {
+  let queryString = "/users?or=(";
 
   if (username != null) {
     queryString += `username.eq.${username}`;

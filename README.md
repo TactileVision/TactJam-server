@@ -26,20 +26,20 @@ We're using the [award-winning](https://www.password-hashing.net/) **Argon2** ha
 
 The live-server will be located at the HTW-Dresden. There are access restrictions in place. Unauthorized will have no access to the data or logs on the server.
 
-### installation
+### Installation
 
 Install dependencies first
 `yarn install`
 
-Make a copy of the [.env.example](https://raw.githubusercontent.com/TactileVision/TactJam-server/main/.env.example) file and adjust the values in it to suit your environment.
+Make a copy of the [.env.example](https://raw.githubusercontent.com/TactileVision/TactJam-server/main/.env.example) file, call it `.env` and adjust the values in it to suit your environment.
 
 Now Make sure the database is initialized and the postgREST server is working (see [database.md](https://raw.githubusercontent.com/TactileVision/TactJam-server/main/database/database.md)).
 
-#### dev server with hotreload
+#### Dev server with hotreload
 
 `yarn dev`
 
-#### start server
+#### Start server
 
 `yarn start`
 
