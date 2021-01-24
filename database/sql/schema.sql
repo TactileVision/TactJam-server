@@ -1,112 +1,3 @@
-create table email_updates
-(
-    number            serial                   not null
-        constraint email_updates_pk
-            primary key,
-    user_id           uuid                     not null,
-    old_email         text,
-    new_email         text                     not null,
-    confirm_expiry_at timestamp with time zone not null,
-    token             text                     not null,
-    confirmed         boolean default false    not null,
-    current           boolean default false    not null
-);
-
-comment on column email_updates.user_id is 'foreign key to table users';
-
-comment on column email_updates.old_email is 'log of the old email';
-
-comment on column email_updates.new_email is 'new email to add to user if confirmed';
-
-comment on column email_updates.confirm_expiry_at is 'date where the token / transaction will get invalid';
-
-comment on column email_updates.token is 'hash of the email token used to confirming the email';
-
-comment on column email_updates.confirmed is 'Was the email changed from old to now?';
-
-comment on column email_updates.current is 'indicated that this email is the current one';
-
-create unique index email_updates_number_uindex
-    on email_updates (number);
-
-create unique index email_updates_token_uindex
-    on email_updates (token);
-
-create table tactons
-(
-    id          uuid default gen_random_uuid() not null
-        constraint tactons_pk
-            primary key,
-    user_id     uuid,
-    title       text                           not null,
-    description text,
-    libvtp_path text                           not null
-);
-
-comment on column tactons.user_id is 'FK from table users';
-
-comment on column tactons.title is 'title of the tacton';
-
-comment on column tactons.description is 'description for the tacton';
-
-comment on column tactons.libvtp_path is 'datapath/name to the binary libvtp file';
-
-create unique index tactons_id_uindex
-    on tactons (id);
-
-create table tags
-(
-    id   serial not null
-        constraint tags_pk
-            primary key,
-    name text   not null
-);
-
-create unique index tags_id_uindex
-    on tags (id);
-
-create unique index tags_name_uindex
-    on tags (name);
-
-create table motor_positions
-(
-    id        serial    not null
-        constraint motor_positions_pk
-            primary key,
-    tacton_id uuid      not null
-        constraint motor_positions_tactons_id_fk
-            references tactons
-            on update cascade on delete cascade,
-    x         numeric[] not null,
-    y         numeric[] not null,
-    z         numeric[] not null
-);
-
-create unique index motor_positions_id_uindex
-    on motor_positions (id);
-
-create table body_tags
-(
-    id   serial not null
-        constraint body_tags_pk
-            primary key,
-    name text   not null
-);
-
-create unique index body_tags_id_uindex
-    on body_tags (id);
-
-create unique index body_tags_name_uindex
-    on body_tags (name);
-
-create table teams
-(
-    id   uuid default gen_random_uuid() not null
-        constraint teams_pk
-            primary key,
-    name text                           not null
-);
-
 create table users
 (
     id            uuid    default gen_random_uuid() not null
@@ -119,10 +10,7 @@ create table users
     created_at    timestamp with time zone          not null,
     updated_at    timestamp with time zone          not null,
     last_login_at timestamp with time zone,
-    team_id       uuid
-        constraint users_teams_id_fk
-            references teams
-            on update cascade on delete cascade,
+    team_id       uuid,
     banned        boolean default false             not null,
     admin         boolean default false             not null
 );
@@ -182,6 +70,134 @@ comment on column password_resets.used is 'log if it is used already';
 
 create unique index password_resets_number_uindex
     on password_resets (number);
+
+create table email_updates
+(
+    number            serial                   not null
+        constraint email_updates_pk
+            primary key,
+    user_id           uuid                     not null,
+    old_email         text,
+    new_email         text                     not null,
+    confirm_expiry_at timestamp with time zone not null,
+    token             text                     not null,
+    confirmed         boolean default false    not null,
+    current           boolean default false    not null
+);
+
+comment on column email_updates.user_id is 'foreign key to table users';
+
+comment on column email_updates.old_email is 'log of the old email';
+
+comment on column email_updates.new_email is 'new email to add to user if confirmed';
+
+comment on column email_updates.confirm_expiry_at is 'date where the token / transaction will get invalid';
+
+comment on column email_updates.token is 'hash of the email token used to confirming the email';
+
+comment on column email_updates.confirmed is 'Was the email changed from old to now?';
+
+comment on column email_updates.current is 'indicated that this email is the current one';
+
+create unique index email_updates_number_uindex
+    on email_updates (number);
+
+create unique index email_updates_token_uindex
+    on email_updates (token);
+
+create table tactons
+(
+    id          uuid default gen_random_uuid() not null
+        constraint tactons_pk
+            primary key,
+    user_id     uuid
+        constraint tactons_users_id_fk
+            references users
+            on update cascade on delete cascade,
+    title       text                           not null,
+    description text,
+    libvtp_path text                           not null
+);
+
+comment on column tactons.user_id is 'FK from table users';
+
+comment on column tactons.title is 'title of the tacton';
+
+comment on column tactons.description is 'description for the tacton';
+
+comment on column tactons.libvtp_path is 'datapath/name to the binary libvtp file';
+
+create unique index tactons_id_uindex
+    on tactons (id);
+
+create table tags
+(
+    id         serial not null
+        constraint tags_pk
+            primary key,
+    name       text   not null,
+    creator_id uuid   not null
+        constraint tags_users_id_fk
+            references users
+            on update cascade on delete cascade
+);
+
+create unique index tags_id_uindex
+    on tags (id);
+
+create unique index tags_name_uindex
+    on tags (name);
+
+create table motor_positions
+(
+    id        serial    not null
+        constraint motor_positions_pk
+            primary key,
+    tacton_id uuid      not null
+        constraint motor_positions_tactons_id_fk
+            references tactons
+            on update cascade on delete cascade,
+    x         numeric[] not null,
+    y         numeric[] not null,
+    z         numeric[] not null
+);
+
+create unique index motor_positions_id_uindex
+    on motor_positions (id);
+
+create table body_tags
+(
+    id         serial not null
+        constraint body_tags_pk
+            primary key,
+    name       text   not null,
+    creator_id uuid   not null
+        constraint body_tags_users_id_fk
+            references users
+);
+
+create unique index body_tags_id_uindex
+    on body_tags (id);
+
+create unique index body_tags_name_uindex
+    on body_tags (name);
+
+create table teams
+(
+    id         uuid default gen_random_uuid() not null
+        constraint teams_pk
+            primary key,
+    name       text                           not null,
+    creator_id uuid                           not null
+        constraint teams_users_id_fk
+            references users
+            on update cascade on delete cascade
+);
+
+alter table users
+    add constraint users_teams_id_fk
+        foreign key (team_id) references teams
+            on update cascade on delete cascade;
 
 create unique index teams_id_uindex
     on teams (id);
