@@ -15,20 +15,19 @@ const router = new Router({ prefix: "/bodyTags" });
  *   schemas:
  *     "bodyTagsResponse":
  *       type: array
- *         items:
+ *       items:
  *         type: object
- *           properties:
- *             id:
- *               type: number
- *               format: int32
- *             name:
- *               type: string
- *             creator_id:
- *               type: string
- *               format: uuid
-
-/**
- * @swagger
+ *         properties:
+ *           id:
+ *             type: number
+ *             format: int32
+ *           name:
+ *             type: string
+ *           creator_id:
+ *             type: string
+ *             format: uuid
+ *
+ *
  * /bodyTags:
  *    get:
  *      description: Get all bodyTags

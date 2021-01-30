@@ -15,19 +15,19 @@ const router = new Router({ prefix: "/tags" });
  *   schemas:
  *     "tagsResponse":
  *       type: array
- *         items:
+ *       items:
  *         type: object
- *           properties:
- *             id:
- *               type: number
- *               format: int32
- *             name:
- *               type: string
- *             creator_id:
- *               type: string
- *               format: uuid
-
-/**
+ *         properties:
+ *           id:
+ *             type: number
+ *             format: int32
+ *           name:
+ *             type: string
+ *           creator_id:
+ *             type: string
+ *             format: uuid
+ *
+ *
  * @swagger
  * /tags:
  *    get:
