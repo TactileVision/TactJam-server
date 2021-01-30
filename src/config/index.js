@@ -10,7 +10,7 @@ const config = {
   port: process.env.APP_PORT || 8080,
   cookieSecret: process.env.COOKIE_SECRET,
   jwtSecret: process.env.JWT_SECRET,
-  domain: "https://tactjam.informatik.htw-dresden.de",
+  domain: "https://" + process.env.SERVER_DOMAIN,
 };
 
 export default config;

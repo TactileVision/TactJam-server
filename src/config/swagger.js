@@ -15,12 +15,16 @@ export const swaggerOptions = {
         name: "MIT",
         url: "https://github.com/TactileVision/TactJam-server",
       },
-      version: "0.0.1",
+      version: "0.0.2",
     },
     servers: [
       {
         url: "http://localhost:8080/",
         description: "Development server",
+      },
+      {
+        url: "https://itactjam.informatik.htw-dresden.de/",
+        description: "Live Server",
       },
     ],
   },
