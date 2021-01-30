@@ -145,13 +145,17 @@ router.get("/search/id/:id", async (ctx) => {
  *                    format: uuid
  */
 router.get("/search/name/:name", async (ctx) => {
-  const teamName = ctx.params.name;
+  let teamName = ctx.params.name;
   if (teamName == null) {
     ctx.throw(400, "missing team name");
   }
+
+  // trim spaces before and after
+  teamName = validator.trim(teamName);
+
   if (
     !validator.isLength(teamName, { min: 2, max: 128 }) ||
-    !validator.isAlphanumeric(teamName)
+    !validator.isAlpha(teamName, "en-US", { ignore: "1234567890 -" })
   ) {
     ctx.throw(400, "Invalid name");
   }
@@ -210,17 +214,20 @@ router.post(
   permission(),
   koaBody(),
   async (ctx) => {
-    const name = ctx.request.body.name;
+    let name = ctx.request.body.name;
 
     // check if the name is there
     if (name == null) {
       ctx.throw(400, "missing body parameters");
     }
 
+    // trim spaces before and after
+    name = validator.trim(name);
+
     // check input
     if (
       !validator.isLength(name, { min: 2, max: 128 }) ||
-      !validator.isAlphanumeric(name)
+      !validator.isAlpha(name, "en-US", { ignore: "1234567890 -" })
     ) {
       ctx.throw(400, "Invalid name or length");
     }
@@ -290,7 +297,7 @@ router.patch(
   async (ctx) => {
     // validate the input
     const teamId = ctx.params.id;
-    const name = ctx.request.body.name;
+    let name = ctx.request.body.name;
 
     // team id first
     if (teamId == null) {
@@ -304,9 +311,13 @@ router.patch(
     if (name == null) {
       ctx.throw(400, "missing body parameters");
     }
+
+    // trim spaces before and after
+    name = validator.trim(name);
+
     if (
       !validator.isLength(name, { min: 2, max: 128 }) ||
-      !validator.isAlphanumeric(name)
+      !validator.isAlpha(name, "en-US", { ignore: "1234567890 -" })
     ) {
       ctx.throw(400, "Invalid name or length");
     }

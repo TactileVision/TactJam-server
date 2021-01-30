@@ -134,13 +134,17 @@ router.get("/search/id/:id", async (ctx) => {
  *                $ref: "#/components/schemas/tagsResponse"
  */
 router.get("/search/name/:name", async (ctx) => {
-  const tagName = ctx.params.name;
+  let tagName = ctx.params.name;
   if (tagName == null) {
     ctx.throw(400, "missing tag name");
   }
+
+  // trim spaces before and after
+  tagName = validator.trim(tagName);
+
   if (
     !validator.isLength(tagName, { min: 2, max: 128 }) ||
-    !validator.isAlphanumeric(tagName)
+    !validator.isAlpha(tagName, "en-US", { ignore: "1234567890 -" })
   ) {
     ctx.throw(400, "Invalid name");
   }
@@ -199,17 +203,20 @@ router.post(
   permission(),
   koaBody(),
   async (ctx) => {
-    const name = ctx.request.body.name;
+    let name = ctx.request.body.name;
 
     // check if the name is there
     if (name == null) {
       ctx.throw(400, "missing body parameters");
     }
 
+    // trim spaces before and after
+    name = validator.trim(name);
+
     // check input
     if (
       !validator.isLength(name, { min: 2, max: 128 }) ||
-      !validator.isAlphanumeric(name)
+      !validator.isAlpha(name, "en-US", { ignore: "1234567890 -" })
     ) {
       ctx.throw(400, "Invalid name or length");
     }
@@ -280,7 +287,7 @@ router.patch(
   async (ctx) => {
     // validate the input
     const tagId = ctx.params.id;
-    const name = ctx.request.body.name;
+    let name = ctx.request.body.name;
 
     // tag id first
     if (tagId == null) {
@@ -294,9 +301,13 @@ router.patch(
     if (name == null) {
       ctx.throw(400, "missing body parameters");
     }
+
+    // trim spaces before and after
+    name = validator.trim(name);
+
     if (
       !validator.isLength(name, { min: 2, max: 128 }) ||
-      !validator.isAlphanumeric(name)
+      !validator.isAlpha(name, "en-US", { ignore: "1234567890 -" })
     ) {
       ctx.throw(400, "Invalid name or length");
     }
