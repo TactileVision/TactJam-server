@@ -11,6 +11,23 @@ const router = new Router({ prefix: "/teams" });
 
 /**
  * @swagger
+ * components:
+ *   schemas:
+ *     "teamResponse":
+ *       type: array
+ *       items:
+ *         type: object
+ *         properties:
+ *           id:
+ *             type: string
+ *             format: uuid
+ *           name:
+ *             type: string
+ *           creator_id:
+ *             type: string
+ *             format: uuid
+ *
+ *
  * /teams:
  *    get:
  *      description: Get all teams
@@ -25,22 +42,11 @@ const router = new Router({ prefix: "/teams" });
  *      responses:
  *        200:
  *          description: >
- *            Returns the an array with all teams
+ *            Returns an array with all teams
  *          content:
  *            application/json:
  *              schema:
- *                type: array
- *                items:
- *                  type: object
- *                  properties:
- *                    id:
- *                      type: string
- *                      format: uuid
- *                    name:
- *                      type: string
- *                    creator_id:
- *                      type: string
- *                      format: uuid
+ *                $ref: "#/components/schemas/teamResponse"
  */
 router.get("/", async (ctx) => {
   // get data from db
@@ -72,21 +78,11 @@ router.get("/", async (ctx) => {
  *      security: []
  *      responses:
  *        200:
- *          description: >
- *            Returns the an object with the team name and id
+ *          description: Returns an array with the selected team
  *          content:
  *            application/json:
  *              schema:
- *                type: object
- *                properties:
- *                  id:
- *                    type: string
- *                    format: uuid
- *                  name:
- *                    type: string
- *                  creator_id:
- *                    type: string
- *                    format: uuid
+ *                $ref: "#/components/schemas/teamResponse"
  */
 router.get("/search/id/:id", async (ctx) => {
   const teamId = ctx.params.id;
@@ -104,7 +100,7 @@ router.get("/search/id/:id", async (ctx) => {
   }
 
   // return to user
-  ctx.body = response.data[0];
+  ctx.body = response.data;
 });
 
 /**
@@ -128,21 +124,11 @@ router.get("/search/id/:id", async (ctx) => {
  *      security: []
  *      responses:
  *        200:
- *          description: >
- *            Returns the an object with the team name and id
+ *          description: Returns an array with the selected team
  *          content:
  *            application/json:
  *              schema:
- *                type: object
- *                properties:
- *                  id:
- *                    type: string
- *                    format: uuid
- *                  name:
- *                    type: string
- *                  creator_id:
- *                    type: string
- *                    format: uuid
+ *                $ref: "#/components/schemas/teamResponse"
  */
 router.get("/search/name/:name", async (ctx) => {
   let teamName = ctx.params.name;
@@ -167,7 +153,7 @@ router.get("/search/name/:name", async (ctx) => {
   }
 
   // return to user
-  ctx.body = response.data[0];
+  ctx.body = response.data;
 });
 
 /**
@@ -202,9 +188,12 @@ router.get("/search/name/:name", async (ctx) => {
  *      security:
  *        - cookieAuth: []
  *      responses:
- *        201:
- *          description: >
- *            Returns the an object with the team name and id
+ *        200:
+ *          description: Returns an array with the created object
+ *          content:
+ *            application/json:
+ *              schema:
+ *                $ref: "#/components/schemas/teamResponse"
  *        400:
  *          description: Invalid request
  */
@@ -242,9 +231,10 @@ router.post(
       creator_id: ctx.state.user.id,
     };
 
-    await dbServer.post("/teams", payload);
+    // push into database and return the data
+    const newResponse = await dbServer.post("/teams", payload);
 
-    ctx.status = 201;
+    ctx.body = newResponse.data;
   }
 );
 
@@ -282,8 +272,12 @@ router.post(
  *      security:
  *        - cookieAuth: []
  *      responses:
- *        204:
- *          description: Successfully updated.
+ *        200:
+ *          description: Returns an array with the updated object
+ *          content:
+ *            application/json:
+ *              schema:
+ *                $ref: "#/components/schemas/teamResponse"
  *        400:
  *          description: Invalid request
  *        401:
@@ -340,9 +334,13 @@ router.patch(
       name: name,
     };
 
-    await dbServer.patch(`/teams?id=eq.${data.id}`, payload);
+    // update database
+    const updateResponse = await dbServer.patch(
+      `/teams?id=eq.${data.id}`,
+      payload
+    );
 
-    ctx.status = 204;
+    ctx.body = updateResponse.data;
   }
 );
 

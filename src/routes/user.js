@@ -7,7 +7,7 @@ import permission from "../auth/permissionMiddleware.js";
 import jwtAuthOptions from "../auth/jwtAuthOptions.js";
 import dbServer from "../database/dbServer.js";
 
-import { generateHash, compareHash } from "../auth/password.js"; // compareHash
+import { compareHash, generateHash } from "../auth/password.js"; // compareHash
 import { v4 as uuidv4 } from "uuid";
 // import { sendEmailConfirmation } from "../mail/index.js";
 import getTomorrow from "../helper/getTomorrow.js";
@@ -16,6 +16,30 @@ const router = new Router({ prefix: "/user" });
 
 /**
  * @swagger
+ * components:
+ *   schemas:
+ *     "userResponse":
+ *       type: array
+ *       items:
+ *         type: object
+ *         properties:
+ *           id:
+ *             type: string
+ *             format: uuid
+ *           username:
+ *             type: string
+ *           name:
+ *             type: string
+ *           isAdmin:
+ *             type: boolean
+ *           banned:
+ *             type: boolean
+ *           teamId:
+ *             type: string
+ *             format: uuid
+ *
+ *
+ *
  * /user/{userId}:
  *    get:
  *      description: Get a users by his ID. Only admins are allowed to use this operation.
@@ -38,26 +62,11 @@ const router = new Router({ prefix: "/user" });
  *      responses:
  *        200:
  *          description: >
- *            Returns the user, if there is a user with the id
+ *            Returns an array with the user, if there is a user with the id
  *          content:
  *            application/json:
  *              schema:
- *                type: object
- *                properties:
- *                  id:
- *                    type: string
- *                    format: uuid
- *                  username:
- *                    type: string
- *                  name:
- *                    type: string
- *                  isAdmin:
- *                    type: boolean
- *                  banned:
- *                    type: boolean
- *                  teamId:
- *                    type: string
- *                    format: uuid
+ *                $ref: "#/components/schemas/userResponse"
  *        400:
  *          description: No user found with that userId.
  *        401:
@@ -79,14 +88,7 @@ router.get(
     const user = response.data[0];
 
     // return the user
-    ctx.body = {
-      id: user.id,
-      username: user.username,
-      name: user.name,
-      banned: user.banned,
-      isAdmin: user.is_admin,
-      teamId: user.team_id,
-    };
+    ctx.body = await createUserResponse(user);
   }
 );
 
@@ -146,11 +148,15 @@ router.get(
  *      parameters: []
  *      security: []
  *      responses:
- *        201:
+ *        200:
  *          description: >
  *            Successfully registered.
  *            The user is now saved in the database.
  *            You can login with the registered information.
+ *          content:
+ *            application/json:
+ *              schema:
+ *                $ref: "#/components/schemas/userResponse"
  *        400:
  *          description: Invalid request
  */
@@ -216,7 +222,7 @@ router.post("/register", koaBody(), async (ctx) => {
   };
 
   // save new user
-  await dbServer.post("/users", payload);
+  const newUserResponse = await dbServer.post("/users", payload);
 
   // email confirmation
   const mailUuid = uuidv4();
@@ -240,7 +246,10 @@ router.post("/register", koaBody(), async (ctx) => {
     console.log(e);
   }
 
-  ctx.status = 201;
+  const user = newUserResponse.data[0];
+
+  // return the user
+  ctx.body = await createUserResponse(user);
 });
 
 /**
@@ -294,8 +303,12 @@ router.post("/register", koaBody(), async (ctx) => {
  *      security:
  *        - cookieAuth: []
  *      responses:
- *        204:
- *          description: Successfully updated.
+ *        200:
+ *          description: Successfully updated. Returns an array with the user
+ *          content:
+ *            application/json:
+ *              schema:
+ *                $ref: "#/components/schemas/userResponse"
  *        400:
  *          description: Invalid request
  *        401:
@@ -418,10 +431,13 @@ router.put(
     }
 
     // update on db
-    await dbServer.patch(`/users?id=eq.${user.id}`, patchObj);
+    const updatedUser = await dbServer.patch(
+      `/users?id=eq.${user.id}`,
+      patchObj
+    );
 
     // return the user
-    ctx.status = 200;
+    ctx.body = createUserResponse(updatedUser);
   }
 );
 
@@ -459,7 +475,7 @@ router.put(
  *      security:
  *        - cookieAuth: []
  *      responses:
- *        200:
+ *        204:
  *          description: Successfully updated.
  *        400:
  *          description: Invalid request
@@ -511,7 +527,7 @@ router.patch(
       password: newPassword,
       updated_at: new Date(),
     });
-    ctx.status = 200;
+    ctx.status = 204;
   }
 );
 
@@ -616,4 +632,17 @@ async function validateUniqueValues(ctx, username, email) {
   }
   // both values are not used
   return { valid: true };
+}
+
+async function createUserResponse(userFromDB) {
+  return [
+    {
+      id: userFromDB.id,
+      username: userFromDB.username,
+      name: userFromDB.name,
+      banned: userFromDB.banned,
+      isAdmin: userFromDB.is_admin,
+      teamId: userFromDB.team_id,
+    },
+  ];
 }

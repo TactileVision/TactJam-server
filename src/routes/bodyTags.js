@@ -42,7 +42,7 @@ const router = new Router({ prefix: "/bodyTags" });
  *      responses:
  *        200:
  *          description: >
- *            Returns the an array with all bodyTags
+ *            Returns an array with all bodyTags
  *          content:
  *            application/json:
  *              schema:
@@ -78,8 +78,7 @@ router.get("/", async (ctx) => {
  *      security: []
  *      responses:
  *        200:
- *          description: >
- *            Returns the an object with the bodyTag name and id
+ *          description: Returns an array with the object
  *          content:
  *            application/json:
  *              schema:
@@ -101,7 +100,7 @@ router.get("/search/id/:id", async (ctx) => {
   }
 
   // return to user
-  ctx.body = response.data[0];
+  ctx.body = response.data;
 });
 
 /**
@@ -125,8 +124,7 @@ router.get("/search/id/:id", async (ctx) => {
  *      security: []
  *      responses:
  *        200:
- *          description: >
- *            Returns the an object with the bodyTag name and id
+ *          description: Returns an array with the object
  *          content:
  *            application/json:
  *              schema:
@@ -155,7 +153,7 @@ router.get("/search/name/:name", async (ctx) => {
   }
 
   // return to user
-  ctx.body = response.data[0];
+  ctx.body = response.data;
 });
 
 /**
@@ -190,9 +188,12 @@ router.get("/search/name/:name", async (ctx) => {
  *      security:
  *        - cookieAuth: []
  *      responses:
- *        201:
- *          description: >
- *            Returns the an object with the bodyTag name and id
+ *        200:
+ *          description: Returns an array with the created object
+ *          content:
+ *            application/json:
+ *              schema:
+ *                $ref: "#/components/schemas/bodyTagsResponse"
  *        400:
  *          description: Invalid request
  */
@@ -230,9 +231,10 @@ router.post(
       creator_id: ctx.state.user.id,
     };
 
-    await dbServer.post("/body_tags", payload);
+    // push into database and return the data
+    const newData = await dbServer.post("/body_tags", payload);
 
-    ctx.status = 201;
+    ctx.body = newData.data;
   }
 );
 
@@ -271,8 +273,12 @@ router.post(
  *      security:
  *        - cookieAuth: []
  *      responses:
- *        204:
- *          description: Successfully updated.
+ *        200:
+ *          description: Returns an array with the updated object
+ *          content:
+ *            application/json:
+ *              schema:
+ *                $ref: "#/components/schemas/bodyTagsResponse"
  *        400:
  *          description: Invalid request
  *        401:
@@ -329,9 +335,13 @@ router.patch(
       name: name,
     };
 
-    await dbServer.patch(`/body_tags?id=eq.${data.id}`, payload);
+    // update database
+    const updatedResponse = await dbServer.patch(
+      `/body_tags?id=eq.${data.id}`,
+      payload
+    );
 
-    ctx.status = 204;
+    ctx.body = updatedResponse.data;
   }
 );
 

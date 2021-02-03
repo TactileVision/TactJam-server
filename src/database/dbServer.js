@@ -14,4 +14,8 @@ const dbServer = axios.create({
 dbServer.defaults.headers.common.Authorization =
   "Bearer " + process.env.DB_TOKEN;
 
+// get back our response
+dbServer.defaults.headers.post.Prefer = "return=representation";
+dbServer.defaults.headers.patch.Prefer = "return=representation";
+
 export default dbServer;
