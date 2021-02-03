@@ -4,6 +4,7 @@ import authRouter from "./auth.js";
 import teamsRouter from "./teams.js";
 import tagRouter from "./tags.js";
 import bodyTagRouter from "./bodyTags.js";
+import motorPositionsRouter from "./motorPositions.js";
 
 function setupRoutes(app) {
   // initialize docs router
@@ -23,6 +24,11 @@ function setupRoutes(app) {
 
   // initialize bodytag router
   app.use(bodyTagRouter.routes()).use(bodyTagRouter.allowedMethods());
+
+  // initialize motorPositions router
+  app
+    .use(motorPositionsRouter.routes())
+    .use(motorPositionsRouter.allowedMethods());
 }
 
 export default setupRoutes;
