@@ -367,7 +367,7 @@ router.patch(
  *      responses:
  *        204:
  *          description: >
- *            Successfully deleted user with the provided ID.
+ *            Successfully deleted the team with the provided ID.
  *            Returns 204 even if nothing got deleted.
  *        400:
  *          description: Invalid request

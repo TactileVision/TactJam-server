@@ -22,21 +22,20 @@ const stateKey = "redirected";
  *         id:
  *           type: number
  *           format: int32
- *         x:
+ *         positions:
  *           type: array
  *           items:
- *             type: number
- *             format: float
- *         y:
- *           type: array
- *           items:
- *             type: number
- *             format: float
- *         z:
- *           type: array
- *           items:
- *             type: number
- *             format: float
+ *             type: object
+ *             properties:
+ *              x:
+ *                type: number
+ *                format: float
+ *              y:
+ *                type: number
+ *                format: float
+ *              z:
+ *                type: number
+ *                format: float
  *     motorPositionRequest:
  *       type: object
  *       properties:
@@ -115,7 +114,7 @@ const stateKey = "redirected";
  *      responses:
  *        200:
  *          description: >
- *            Returns the an object with the tag name and id
+ *            Returns the an object with information about the positions (see schema).
  *          content:
  *            application/json:
  *              schema:
@@ -136,13 +135,13 @@ router.get("/id/:id", async (ctx) => {
   // get data from db
   const response = await dbServer.get(`/${tableName}?id=eq.${id}`);
 
-  // check if there is one tag
+  // check if there is one entry
   if (response.data.length !== 1) {
-    ctx.throw(400, "No unique tag found");
+    ctx.throw(400, "No unique entry found");
   }
 
   // return to user
-  ctx.body = response.data[0];
+  ctx.body = mapOutput(response.data[0]);
 });
 
 /**
@@ -194,7 +193,7 @@ router.get("/id/:id", async (ctx) => {
  *      responses:
  *        200:
  *          description: >
- *            Returns the an object with the tag name and id
+ *            Returns the an object with information about the positions (see schema).
  *          content:
  *            application/json:
  *              schema:
@@ -234,7 +233,7 @@ router.get("/position", async (ctx) => {
     `/${tableName}?and=(x.eq.{${x}},y.eq.{${y}},z.eq.{${z}})`
   );
 
-  ctx.body = response.data;
+  ctx.body = mapOutput(response.data);
 });
 
 /**
@@ -266,7 +265,7 @@ router.get("/position", async (ctx) => {
  *      responses:
  *        200:
  *          description: >
- *            Returns the an object with the tag name and id
+ *            Returns the an object with information about the positions (see schema).
  *        400:
  *          description: Invalid request
  */
@@ -393,7 +392,7 @@ router.post(
  *      responses:
  *        204:
  *          description: >
- *            Successfully deleted user with the provided ID.
+ *            Successfully deleted the entry with the provided Id.
  *            Returns 204 even if nothing got deleted.
  *        400:
  *          description: Invalid request
@@ -408,7 +407,7 @@ router.delete(
     // validate the input
     const id = ctx.params.id;
 
-    // tag id first
+    // id first
     if (id == null) {
       ctx.throw(400, "missing id");
     }
@@ -432,3 +431,22 @@ router.delete(
 );
 
 export default router;
+
+// ---- helper functions ----
+function mapOutput(dataObject) {
+  const obj = {
+    id: dataObject.id,
+    positions: [],
+  };
+
+  // change the schema to xyz
+  for (let i = 0; i < dataObject.x.length; i++) {
+    obj.positions.push({
+      x: dataObject.x[i],
+      y: dataObject.y[i],
+      z: dataObject.z[i],
+    });
+  }
+
+  return obj;
+}
