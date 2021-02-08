@@ -5,6 +5,7 @@ import teamsRouter from "./teams.js";
 import tagRouter from "./tags.js";
 import bodyTagRouter from "./bodyTags.js";
 import motorPositionsRouter from "./motorPositions.js";
+import tactonsRouter from "./tactons.js";
 
 function setupRoutes(app) {
   // initialize docs router
@@ -29,6 +30,9 @@ function setupRoutes(app) {
   app
     .use(motorPositionsRouter.routes())
     .use(motorPositionsRouter.allowedMethods());
+
+  // initialize tacton router
+  app.use(tactonsRouter.routes()).use(tactonsRouter.allowedMethods());
 }
 
 export default setupRoutes;

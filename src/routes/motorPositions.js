@@ -8,6 +8,8 @@ import jwtAuthOptions from "../auth/jwtAuthOptions.js";
 import dbServer from "../database/dbServer.js";
 import localServer from "../database/localServer.js";
 
+import mapOutput from "../helper/mapMotorPositionOutput.js";
+
 const router = new Router({ prefix: "/motorPositions" });
 const tableName = "motor_positions";
 const stateKey = "redirected";
@@ -431,22 +433,3 @@ router.delete(
 );
 
 export default router;
-
-// ---- helper functions ----
-function mapOutput(dataObject) {
-  const obj = {
-    id: dataObject.id,
-    positions: [],
-  };
-
-  // change the schema to xyz
-  for (let i = 0; i < dataObject.x.length; i++) {
-    obj.positions.push({
-      x: dataObject.x[i],
-      y: dataObject.y[i],
-      z: dataObject.z[i],
-    });
-  }
-
-  return obj;
-}

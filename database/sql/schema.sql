@@ -105,31 +105,6 @@ create unique index email_updates_number_uindex
 create unique index email_updates_token_uindex
     on email_updates (token);
 
-create table tactons
-(
-    id          uuid default gen_random_uuid() not null
-        constraint tactons_pk
-            primary key,
-    user_id     uuid
-        constraint tactons_users_id_fk
-            references users
-            on update cascade on delete cascade,
-    title       text                           not null,
-    description text,
-    libvtp_path text                           not null
-);
-
-comment on column tactons.user_id is 'FK from table users';
-
-comment on column tactons.title is 'title of the tacton';
-
-comment on column tactons.description is 'description for the tacton';
-
-comment on column tactons.libvtp_path is 'datapath/name to the binary libvtp file';
-
-create unique index tactons_id_uindex
-    on tactons (id);
-
 create table tags
 (
     id         serial not null
@@ -150,17 +125,47 @@ create unique index tags_name_uindex
 
 create table motor_positions
 (
-    id        serial    not null
+    id serial    not null
         constraint motor_positions_pk
             primary key,
-    tacton_id uuid      not null
-        constraint motor_positions_tactons_id_fk
-            references tactons
-            on update cascade on delete cascade,
-    x         numeric[] not null,
-    y         numeric[] not null,
-    z         numeric[] not null
+    x  numeric[] not null,
+    y  numeric[] not null,
+    z  numeric[] not null,
+    constraint motor_positions_unique
+        unique (x, y, z)
 );
+
+create table tactons
+(
+    id                 uuid                     default gen_random_uuid() not null
+        constraint tactons_pk
+            primary key,
+    user_id            uuid
+        constraint tactons_users_id_fk
+            references users
+            on update cascade on delete cascade,
+    title              text                                               not null,
+    description        text,
+    libvtp_path        text                                               not null,
+    motor_positions_id integer                                            not null
+        constraint tactons_motor_positions_id_fk
+            references motor_positions
+            on update cascade on delete cascade,
+    last_update_at     timestamp with time zone default now()             not null
+);
+
+comment on column tactons.user_id is 'FK from table users';
+
+comment on column tactons.title is 'title of the tacton';
+
+comment on column tactons.description is 'description for the tacton';
+
+comment on column tactons.libvtp_path is 'datapath/name to the binary libvtp file';
+
+comment on column tactons.motor_positions_id is 'FK from table motor_positions';
+
+create unique index tactons_id_uindex
+    on tactons (id);
 
 create unique index motor_positions_id_uindex
     on motor_positions (id);
@@ -248,3 +253,68 @@ comment on column tacton_bodytag_link.tacton_id is 'foreign key of table tactons
 
 create unique index tacton_bodytag_link_id_uindex
     on tacton_bodytag_link (id);
+
+create view gettactons (id, title, description, libvtp_path, last_update_at, "user", motorpositions, tags, bodytags) as
+SELECT t.id,
+       t.title,
+       t.description,
+       t.libvtp_path,
+       t.last_update_at,
+       json_build_object('name', u.name, 'id', t.id)                   AS "user",
+       json_build_object('id', mp.id, 'x', mp.x, 'y', mp.y, 'z', mp.z) AS motorpositions,
+       array_agg(json_build_object('name', tags.name, 'id', tags.id, 'creator_id',
+                                   tags.creator_id))                   AS tags,
+       array_agg(json_build_object('name', bodytags.name, 'id', bodytags.id, 'creator_id',
+                                   bodytags.creator_id))               AS bodytags
+FROM tactons t
+         JOIN tacton_tag_link tlink ON t.id = tlink.tacton_id
+         JOIN tags ON tlink.tag_id = tags.id
+         JOIN tacton_bodytag_link btlink ON t.id = btlink.tacton_id
+         JOIN body_tags bodytags ON btlink.bodytag_id = bodytags.id
+         JOIN users u ON t.user_id = u.id
+         JOIN motor_positions mp ON t.motor_positions_id = mp.id
+GROUP BY t.id, u.id, mp.id
+ORDER BY t.last_update_at DESC
+LIMIT 20;
+
+create function "getTactonsById"(requestid text)
+    returns TABLE
+            (
+                id             uuid,
+                title          text,
+                description    text,
+                libvtp_path    text,
+                last_update_at timestamp with time zone,
+                userobject     json,
+                motorpositions json,
+                tags           json[],
+                bodytags       json[]
+            )
+    language plpgsql
+as
+$$
+BEGIN
+    return query
+        select t.id,
+               t.title,
+               t.description,
+               t.libvtp_path,
+               t.last_update_at,
+               json_build_object('name', u.name, 'id', t.id)                                                 as userobject,
+               json_build_object('id', mp.id, 'x', mp.x, 'y', mp.y, 'z', mp.z)                               as motorpositions,
+               array_agg(json_build_object('name', tags.name, 'id', tags.id, 'creator_id', tags.creator_id)) as tags,
+               array_agg(json_build_object('name', bodyTags.name, 'id', bodyTags.id, 'creator_id',
+                                           bodyTags.creator_id))                                             as bodytags
+        from tactons t
+                 JOIN tacton_tag_link tlink on t.id = tlink.tacton_id
+                 JOIN tags on tlink.tag_id = tags.id
+                 JOIN tacton_bodytag_link btlink on t.id = btlink.tacton_id
+                 JOIN body_tags bodyTags on btlink.bodytag_id = bodyTags.id
+                 JOIN users u on t.user_id = u.id
+                 JOIN motor_positions mp on t.motor_positions_id = mp.id
+        where t.user_id = requestid::uuid
+        group by t.id, u.id, mp.id
+        order by t.last_update_at desc;
+end;
+$$;
+

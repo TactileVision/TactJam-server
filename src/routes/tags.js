@@ -28,7 +28,6 @@ const router = new Router({ prefix: "/tags" });
  *             format: uuid
  *
  *
- * @swagger
  * /tags:
  *    get:
  *      description: Get all tags
