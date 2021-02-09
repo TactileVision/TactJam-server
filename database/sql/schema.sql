@@ -146,7 +146,7 @@ create table tactons
             on update cascade on delete cascade,
     title              text                                               not null,
     description        text,
-    libvtp_path        text                                               not null,
+    libvtp             text                                               not null,
     motor_positions_id integer                                            not null
         constraint tactons_motor_positions_id_fk
             references motor_positions
@@ -160,7 +160,7 @@ comment on column tactons.title is 'title of the tacton';
 
 comment on column tactons.description is 'description for the tacton';
 
-comment on column tactons.libvtp_path is 'datapath/name to the binary libvtp file';
+comment on column tactons.libvtp is 'hex encoded buffer from the libvtp buffer';
 
 comment on column tactons.motor_positions_id is 'FK from table motor_positions';
 
@@ -254,11 +254,11 @@ comment on column tacton_bodytag_link.tacton_id is 'foreign key of table tactons
 create unique index tacton_bodytag_link_id_uindex
     on tacton_bodytag_link (id);
 
-create view gettactons (id, title, description, libvtp_path, last_update_at, "user", motorpositions, tags, bodytags) as
+create view gettactons (id, title, description, libvtp, last_update_at, "user", motorpositions, tags, bodytags) as
 SELECT t.id,
        t.title,
        t.description,
-       t.libvtp_path,
+       t.libvtp,
        t.last_update_at,
        json_build_object('name', u.name, 'id', t.id)                   AS "user",
        json_build_object('id', mp.id, 'x', mp.x, 'y', mp.y, 'z', mp.z) AS motorpositions,
@@ -283,7 +283,7 @@ create function "getTactonsById"(requestid text)
                 id             uuid,
                 title          text,
                 description    text,
-                libvtp_path    text,
+                libvtp         text,
                 last_update_at timestamp with time zone,
                 userobject     json,
                 motorpositions json,
@@ -298,7 +298,7 @@ BEGIN
         select t.id,
                t.title,
                t.description,
-               t.libvtp_path,
+               t.libvtp,
                t.last_update_at,
                json_build_object('name', u.name, 'id', t.id)                                                 as userobject,
                json_build_object('id', mp.id, 'x', mp.x, 'y', mp.y, 'z', mp.z)                               as motorpositions,

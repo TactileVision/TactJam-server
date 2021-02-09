@@ -26,7 +26,14 @@ const router = new Router({ prefix: "/tags" });
  *           creator_id:
  *             type: string
  *             format: uuid
- *
+ *     "tagPostRequest":
+ *       type: object
+ *       properties:
+ *         name:
+ *           type: string
+ *           minLength: 2
+ *           maxLength: 128
+ *           description: Alpha Numeric only!
  *
  * /tags:
  *    get:
@@ -171,13 +178,7 @@ router.get("/search/name/:name", async (ctx) => {
  *        content:
  *          application/json:
  *            schema:
- *              type: object
- *              properties:
- *                name:
- *                  type: string
- *                  minLength: 2
- *                  maxLength: 128
- *                  description: Alpha Numeric only!
+ *              $ref: "#/components/schemas/tagPostRequest"
  *              required:
  *                - name
  *            example:
@@ -189,7 +190,9 @@ router.get("/search/name/:name", async (ctx) => {
  *        - cookieAuth: []
  *      responses:
  *        200:
- *          description: Returns an array with the created object
+ *          description: >
+ *            Returns an array with the created object.
+ *            Will return the object if there is a tag with that name already.
  *          content:
  *            application/json:
  *              schema:
@@ -203,40 +206,57 @@ router.post(
   permission(),
   koaBody(),
   async (ctx) => {
-    let name = ctx.request.body.name;
-
-    // check if the name is there
-    if (name == null) {
-      ctx.throw(400, "missing body parameters");
-    }
-
-    // trim spaces before and after
-    name = validator.trim(name);
-
-    // check input
-    if (
-      !validator.isLength(name, { min: 2, max: 128 }) ||
-      !validator.isAlpha(name, "en-US", { ignore: "1234567890 -" })
-    ) {
-      ctx.throw(400, "Invalid name or length");
-    }
-
-    const validation = await validateUniqueName(name);
-    if (!validation.valid) {
-      ctx.throw(400, validation.msg);
-    }
-
-    const payload = {
-      name: name,
-      creator_id: ctx.state.user.id,
-    };
-
-    // push into database and return the data
-    const newData = await dbServer.post("/tags", payload);
-
-    ctx.body = newData.data;
+    await tagsPost(ctx);
   }
 );
+
+// function to use on other endpoints as well
+export async function tagsPost(ctx, returnsValue = false, n = "") {
+  let name = ctx.request.body.name;
+
+  // if we use the function with a return value, then we use the provided name
+  if (returnsValue) {
+    name = n;
+  }
+
+  // check if the name is there
+  if (name == null) {
+    ctx.throw(400, "missing body parameters");
+  }
+
+  // trim spaces before and after
+  name = validator.trim(name);
+
+  // check input
+  if (
+    !validator.isLength(name, { min: 2, max: 128 }) ||
+    !validator.isAlpha(name, "en-US", { ignore: "1234567890 -" })
+  ) {
+    ctx.throw(400, "Invalid name or length");
+  }
+
+  const validation = await validateUniqueName(name);
+  if (!validation.valid) {
+    // check if we found 1 entry, if yes, return it
+    if (validation.msg === false) {
+      if (!returnsValue) ctx.body = validation.data;
+      else return validation.data;
+      return;
+    }
+    ctx.throw(400, validation.msg);
+  }
+
+  const payload = {
+    name: name,
+    creator_id: ctx.state.user.id,
+  };
+
+  // push into database and return the data
+  const newData = await dbServer.post("/tags", payload);
+
+  if (!returnsValue) ctx.body = newData.data;
+  else return newData.data;
+}
 
 /**
  * @swagger
@@ -416,8 +436,9 @@ async function validateUniqueName(name) {
   const queryString = `/tags?name=eq.${name}`;
   // database request to check for values
   const response = await dbServer.get(queryString);
-  if (response.data.length > 0) {
+  if (response.data.length === 1) {
+    return { valid: false, msg: false, data: response.data };
+  } else if (response.data.length > 0) {
     return { valid: false, msg: "Name already taken" };
-  }
-  return { valid: true };
+  } else return { valid: true };
 }
