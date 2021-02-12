@@ -222,7 +222,9 @@ create table tacton_tag_link
     tag_id    integer not null
         constraint user_tag_link_tags_id_fk
             references tags
-            on update cascade on delete cascade
+            on update cascade on delete cascade,
+    constraint tacton_tag_link_pk
+        unique (tacton_id, tag_id)
 );
 
 comment on column tacton_tag_link.tacton_id is 'foreign key from table users';
@@ -244,7 +246,9 @@ create table tacton_bodytag_link
     tacton_id  uuid    not null
         constraint tacton_bodytag_link_tactons_id_fk
             references tactons
-            on update cascade on delete cascade
+            on update cascade on delete cascade,
+    constraint tacton_bodytag_link_pk_2
+        unique (bodytag_id, tacton_id)
 );
 
 comment on column tacton_bodytag_link.bodytag_id is 'foreign key of table bodytags';

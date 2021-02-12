@@ -233,8 +233,8 @@ router.post(
     const bodytagsArray = ctx.request.body.bodyTags;
 
     // variables for our database actions
-    const tags = [];
-    const bodyTags = [];
+    let tags = [];
+    let bodyTags = [];
 
     // check if we got the needed variables
     if (
@@ -271,85 +271,228 @@ router.post(
     await postMotorPositionsTypeValidation(ctx);
     const motorPositionObject = await postMotorPositions(ctx, true);
 
-    // do request for each tag ---------------
-    const tagsPromiseArray = [];
-    tagsArray.forEach((element) => {
-      tagsPromiseArray.push(tagsPost(ctx, true, element.name));
-    });
-
-    // resolve all; Will return array in array
-    const responseArray = await Promise.all(tagsPromiseArray);
-
-    // extract the object from the array
-    responseArray.forEach((r) => tags.push(r[0]));
-
-    console.log(tags);
-
-    // do request for each bodytag ---------------
-    const bodytagsPromisearray = [];
-    bodytagsArray.forEach((element) => {
-      bodytagsPromisearray.push(bodyTagsPost(ctx, true, element.name));
-    });
-
-    // resolve all; Will return array in array
-    const bodytagsResponseArray = await Promise.all(bodytagsPromisearray);
-
-    // extract the object from the array
-    bodytagsResponseArray.forEach((r) => bodyTags.push(r[0]));
-    console.log(bodyTags);
+    // create tags
+    tags = await createAndReturnTags(ctx, tagsArray);
+    bodyTags = await createAndReturnTags(ctx, bodytagsArray, true);
 
     // we have created the motor position, the tags and the bodytags
     // now we can send the tacton to the database
-    try {
-      console.log(motorPositionObject);
-      const payload = {
-        user_id: ctx.state.user.id,
-        title: title,
-        description: description,
-        libvtp: libvtpHexString,
-        motor_positions_id: motorPositionObject.id,
-        last_update_at: new Date(),
-      };
-      const tactonResponse = await dbServer.post("/tactons", payload);
-      const newTacton = tactonResponse.data[0];
+    const payload = {
+      user_id: ctx.state.user.id,
+      title: title,
+      description: description,
+      libvtp: libvtpHexString,
+      motor_positions_id: motorPositionObject.id,
+      last_update_at: new Date(),
+    };
+    const tactonResponse = await dbServer.post("/tactons", payload);
+    const newTacton = tactonResponse.data[0];
 
-      // after adding the payload we need to add the link between tacton and tags / bodytags
-      // start with tags
-      const tagLinkPromiseArray = [];
-      tags.forEach((x) =>
-        tagLinkPromiseArray.push(
-          dbServer.post("/tacton_tag_link", {
-            tag_id: x.id,
-            tacton_id: newTacton.id,
-          })
-        )
-      );
-      await Promise.all(tagLinkPromiseArray);
+    // after adding the payload we need to add the link between tacton and tags / bodytags
+    // start with tags
+    await linkTags(newTacton.id, tags);
 
-      // now add bodytags
-      const bodytagLinkPromiseArray = [];
-      bodyTags.forEach((x) =>
-        bodytagLinkPromiseArray.push(
-          dbServer.post("/tacton_bodytag_link", {
-            bodytag_id: x.id,
-            tacton_id: newTacton.id,
-          })
-        )
-      );
-      await Promise.all(bodytagLinkPromiseArray);
+    // now add bodytags
+    await linkTags(newTacton.id, bodyTags, true);
 
-      // return the tacton to the user
-      ctx.body = newTacton;
-    } catch (e) {
-      console.log(e);
-    }
+    // return the tacton to the user
+    ctx.body = newTacton;
   }
 );
+
+/**
+ * @swagger
+ * /tactons/add/:
+ *    post:
+ *      description: >
+ *        This endpoints adds new (body)tags to the provided tacton.
+ *        Assigns one or multiple (body)tags at the same time.
+ *        It does create the (body)tags if they're not available.
+ *        You can only add things to your own tactons (except admins).
+ *      summary: Add (body)tags to tacton
+ *      operationId: addBodyTagsToTacton
+ *      tags:
+ *        - tactons
+ *      requestBody:
+ *        required: true
+ *        description: A JSON object containing the information needed for the tag
+ *        content:
+ *          application/json:
+ *            schema:
+ *              type: object
+ *              properties:
+ *                id:
+ *                  type: string
+ *                  format: uuid
+ *                tags:
+ *                  type: array
+ *                  items:
+ *                    $ref: "#/components/schemas/tagPostRequest"
+ *                bodyTags:
+ *                  type: array
+ *                  items:
+ *                    $ref: "#/components/schemas/bodyTagsRequest"
+ *              required:
+ *                - id
+ *            example:
+ *              id: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+ *              tags:
+ *                [
+ *                {name: "Something Else"},
+ *                {name: "exampleTag 2"},
+ *                {name: "TestTag 2"}
+ *                ]
+ *              bodyTags:
+ *                [
+ *                {name: "Left Hand"},
+ *                {name: "Right Hand"},
+ *                {name: "Torso"}
+ *                ]
+ *      produces:
+ *        - application/json
+ *      parameters: []
+ *      security:
+ *        - cookieAuth: []
+ *      responses:
+ *        201:
+ *          description: >
+ *            Tags have been linked
+ *          content:
+ *            application/json:
+ *              schema:
+ *                $ref: "#/components/schemas/tactonResponse"
+ *        400:
+ *          description: Invalid request
+ */
+router.post(
+  "/add",
+  jwtAuth(jwtAuthOptions),
+  permission(),
+  koaBody(),
+  async (ctx) => {
+    const id = ctx.request.body.id;
+    const requestedTags = ctx.request.body.tags;
+    const requestedBodytags = ctx.request.body.bodyTags;
+    let tagsToAdd = [];
+    let bodytagsToAdd = [];
+    // check id
+    if (id == null) {
+      ctx.throw(400, "Id missing");
+    }
+    if (!validator.isUUID(id)) {
+      ctx.throw(400, "Id is not an UUID");
+    }
+
+    // check if we got at least one array to work with
+    if (requestedTags == null && requestedBodytags == null) {
+      ctx.throw(400, "tags or bodytags needed");
+    }
+
+    if (!Array.isArray(requestedTags) && !Array.isArray(requestedBodytags)) {
+      ctx.throw(400, "tags or bodytags need to be an array");
+    }
+
+    // get our tacton, to check if we have it
+    const tactonResponse = await dbServer.get(`/tactons?id=eq.${id}`);
+    if (tactonResponse.data.length !== 1) {
+      ctx.throw(400, "invalid id; no unique tacton found");
+    }
+    const tacton = tactonResponse.data[0];
+
+    // check if the user is not an admin
+    if (!ctx.state.user.admin && tacton.user_id !== ctx.state.user.id) {
+      ctx.throw(401, "Authentication Error");
+    }
+
+    // user has permission to do this, continue
+    // create and or get the tags
+    if (requestedTags.length > 0) {
+      tagsToAdd = await createAndReturnTags(ctx, requestedTags);
+      // start with tags
+      await linkTags(tacton.id, tagsToAdd);
+    }
+    if (requestedBodytags.length > 0) {
+      bodytagsToAdd = await createAndReturnTags(ctx, requestedBodytags, true);
+      // now add bodytags
+      await linkTags(tacton.id, bodytagsToAdd, true);
+    }
+
+    ctx.status = 201;
+  }
+);
+
+// TODO
+// tactons bearbeiten
+// motorpositionen bearbeiten
+
+/**
+ * @swagger
+ * /tactons/{tactonId}:
+ *    delete:
+ *      description: >
+ *        Delete a tacton.
+ *        You can only delete your own tacton, which you created. Admins can delete all tactons.
+ *      summary: delete tacton
+ *      operationId: deleteTacton
+ *      tags:
+ *        - tactons
+ *      parameters:
+ *      - in: path
+ *        name: tactonId
+ *        schema:
+ *          type: string
+ *          format: uuid
+ *        required: true
+ *        description: Unique id of the tacton
+ *      security:
+ *        - cookieAuth: []
+ *      responses:
+ *        204:
+ *          description: >
+ *            Successfully deleted the tacton with the provided Id.
+ *            Returns 204 even if nothing got deleted.
+ *        400:
+ *          description: Invalid request
+ *        401:
+ *          description: Authentication Error
+ */
+router.delete("/:id", jwtAuth(jwtAuthOptions), permission(), async (ctx) => {
+  // validate the input
+  const id = ctx.params.id;
+
+  // tag id first
+  if (id == null) {
+    ctx.throw(400, "missing id");
+  }
+  if (!validator.isUUID(id)) {
+    ctx.throw(400, "Invalid id");
+  }
+
+  // check if the user is not an admin
+  if (!ctx.state.user.admin) {
+    // find our entry
+    const entryResponse = await dbServer.get(`/tactons?id=eq.${id}`);
+
+    // check if we have an entry
+    if (entryResponse.data.length !== 1) {
+      ctx.throw(400, "Invalid id");
+    }
+
+    if (entryResponse.data[0].user_id !== ctx.state.user.id) {
+      ctx.throw(401, "Authentication Error");
+    }
+  }
+
+  // deleting a tacton will automatically delete the links (cascade deletion)
+  await dbServer.delete(`/tactons?id=eq.${id}`);
+
+  ctx.status = 204;
+});
 
 export default router;
 
 // ---- helper functions ----
-function createResponseData(data) {
+async function createResponseData(data) {
   return new Promise((resolve) => {
     // check if the length is null, if it is, then resolve with empty array
     if (data.length === 0) {
@@ -373,4 +516,70 @@ function filterArrayById(array) {
   return array.filter(
     (arr, index, self) => index === self.findIndex((t) => t.id === arr.id)
   );
+}
+
+async function createAndReturnTags(ctx, t, bodyTags = false) {
+  // do request for each tag ---------------
+  const tagsPromiseArray = [];
+  const arrayToReturn = [];
+  t.forEach((element) => {
+    tagsPromiseArray.push(
+      bodyTags
+        ? bodyTagsPost(ctx, true, element.name)
+        : tagsPost(ctx, true, element.name)
+    );
+  });
+
+  // resolve all; Will return array in array
+  const responseArray = await Promise.all(tagsPromiseArray);
+
+  // extract the object from the array
+  responseArray.forEach((r) => arrayToReturn.push(r[0]));
+
+  return arrayToReturn;
+}
+
+async function linkTags(tactonId, tags, bodyTags = false) {
+  const tagLinkPromiseArray = [];
+  const url = bodyTags ? "/tacton_bodytag_link" : "/tacton_tag_link";
+  const tagPropId = bodyTags ? "bodytag_id" : "tag_id";
+
+  // create a string for the or operation
+  let tagOrString = [];
+  tags.forEach((tag) => tagOrString.push(`${tagPropId}.eq.${tag.id}`));
+  tagOrString = tagOrString.join();
+
+  // search first if we have something in our table already
+  console.log(tagOrString);
+  const r = await dbServer.get(
+    `${url}?and=(tacton_id.eq.${tactonId},or(${tagOrString}))`
+  );
+  const rdata = r.data;
+
+  // check if we found something
+  if (rdata.length > 0) {
+    // if yes, then we need to remove the tag from our array, so we dont try to add it again
+    // iterate thru our elements
+    rdata.forEach((element) => {
+      // find the index in our tags
+      const index = tags.findIndex((tag) => tag.id === element.id);
+      if (!isNaN(index)) {
+        // we found some, so remove this from our list!
+        tags.splice(index, 1);
+      }
+    });
+  }
+
+  // create promise array
+  tags.forEach((tag) =>
+    tagLinkPromiseArray.push(
+      dbServer.post(url, {
+        [tagPropId]: tag.id,
+        tacton_id: tactonId,
+      })
+    )
+  );
+
+  // execute and wait for all promises
+  await Promise.all(tagLinkPromiseArray);
 }
