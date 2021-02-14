@@ -156,6 +156,9 @@ router.get("/own", jwtAuth(jwtAuthOptions), permission(), async (ctx) => {
  *              properties:
  *                title:
  *                  type: string
+ *                  minLength: 2
+ *                  maxLength: 128
+ *                  description: Alpha Numeric only!
  *                description:
  *                  type: string
  *                libvtp:
@@ -163,7 +166,7 @@ router.get("/own", jwtAuth(jwtAuthOptions), permission(), async (ctx) => {
  *                positions:
  *                  type: array
  *                  items:
- *                    $ref: "#/components/schemas/motorPositionRequestCombined"
+ *                    $ref: "#/components/schemas/motorPositionsCombined"
  *                tags:
  *                  type: array
  *                  items:
@@ -184,10 +187,14 @@ router.get("/own", jwtAuth(jwtAuthOptions), permission(), async (ctx) => {
  *              libvtp: "hex buffer here"
  *              positions:
  *                [
- *                {x: 0.2, y: 0.01, z: 1.5},
- *                {x: 0.33, y: 0.02, z: 2.6},
- *                {x: 0.444, y: 0.3, z: 3.77},
- *                {x: 0.555, y: 0.4, z:  4.78},
+ *                {x: 0.12832197525978964, y: 0.7218214843059594, z: 0.048967545338785},
+ *                {x: -0.08349932660499984, y: 1.0978059858427058, z: 0.06086872330418691},
+ *                {x: -0.13681621172935493, y: 0.23134485484760914, z: -0.019713728212142456},
+ *                {x: 0.12098834517427033, y: 1.4271336159515267, z: -0.012528946681072739},
+ *                {x: 0.10007102144665972, y: 1.2197532723926738, z: 0.04885960456824545},
+ *                {x: 0.10290538053234385, y: 0.9573107882659158, z: 0.04804622165800376},
+ *                {x: -0.04950964600727065, y: 0.8984507847516034, z: 0.04869897543784063},
+ *                {x: -0.021518675788634457, y: 1.364175508129114, z: 0.030336090576828845}
  *                ]
  *              tags:
  *                [
@@ -421,9 +428,187 @@ router.post(
   }
 );
 
-// TODO
-// tactons bearbeiten
-// motorpositionen bearbeiten
+/**
+ * @swagger
+ * /tactons/{id}:
+ *    patch:
+ *      description: >
+ *        Update a tacton.
+ *        You can only update your own tacton, which you created. Admins can edit all tactons.
+ *      summary: update tacton
+ *      operationId: updateTacton
+ *      tags:
+ *        - tactons
+ *      parameters:
+ *      - in: path
+ *        name: id
+ *        schema:
+ *          type: string
+ *          format: uuid
+ *        required: true
+ *        description: Unique id of the tacton
+ *      requestBody:
+ *        required: true
+ *        description: A JSON object containing the information to update
+ *        content:
+ *          application/json:
+ *            schema:
+ *              type: object
+ *              properties:
+ *                title:
+ *                  type: string
+ *                  minLength: 2
+ *                  maxLength: 128
+ *                  description: Alpha Numeric only!
+ *                description:
+ *                  type: string
+ *                libvtp:
+ *                  type: string
+ *                positions:
+ *                  type: array
+ *                  items:
+ *                    $ref: "#/components/schemas/motorPositionsCombined"
+ *            example:
+ *              title: "Example Tacton Update"
+ *              description: "This is the updated example tacton"
+ *              libvtp: "updated hex buffer here"
+ *              positions:
+ *                [
+ *                {x: 0.12832197525978965, y: 0.7218214843059594, z: 0.048967545338785},
+ *                {x: -0.08349932660499985, y: 1.0978059858427058, z: 0.06086872330418691},
+ *                {x: -0.13681621172935495, y: 0.23134485484760914, z: -0.019713728212142456},
+ *                {x: 0.12098834517427035, y: 1.4271336159515267, z: -0.012528946681072739},
+ *                {x: 0.10007102144665975, y: 1.2197532723926738, z: 0.04885960456824545},
+ *                {x: 0.10290538053234385, y: 0.9573107882659158, z: 0.04804622165800376},
+ *                {x: -0.04950964600727065, y: 0.8984507847516034, z: 0.04869897543784063},
+ *                {x: -0.021518675788634455, y: 1.364175508129114, z: 0.030336090576828845}
+ *                ]
+ *      security:
+ *        - cookieAuth: []
+ *      responses:
+ *        200:
+ *          description: Returns an array with the updated object
+ *          content:
+ *            application/json:
+ *              schema:
+ *                $ref: "#/components/schemas/tactonResponse"
+ *        400:
+ *          description: Invalid request
+ *        401:
+ *          description: Authentication Error
+ */
+router.patch(
+  "/:id",
+  jwtAuth(jwtAuthOptions),
+  permission(),
+  koaBody(),
+  async (ctx) => {
+    const id = ctx.params.id;
+    let title = ctx.request.body.title;
+    let description = ctx.request.body.description;
+    const libvtpHexString = ctx.request.body.libvtp;
+    const motorPositionsArray = ctx.request.body.positions;
+    const payload = {};
+
+    // check for the id first
+    if (id == null) {
+      ctx.throw(400, "Missing id");
+    }
+
+    // check if we got the needed variables
+    if (
+      title == null &&
+      description == null &&
+      libvtpHexString == null &&
+      motorPositionsArray == null
+    ) {
+      ctx.throw(400, "missing body parameters");
+    }
+
+    // if we have an updated title, add it to the payload
+    if (title != null) {
+      // trim spaces before and after
+      title = validator.trim(title);
+
+      // check length/characters
+      if (
+        !validator.isLength(title, { min: 2, max: 128 }) ||
+        !validator.isAlpha(title, "en-US", { ignore: "1234567890 -" })
+      ) {
+        ctx.throw(400, "Invalid title");
+      }
+
+      payload.title = title;
+    } else {
+      payload.title = false;
+    }
+
+    // if we have an updated description, add it to the payload
+    if (description != null) {
+      // trim spaces before and after
+      description = validator.trim(description);
+      payload.description = description;
+    } else {
+      payload.description = false;
+    }
+
+    // if we have an updated libvtp string, add it to the payload
+    if (libvtpHexString != null) {
+      payload.libvtp = libvtpHexString;
+    } else {
+      payload.libvtp = false;
+    }
+
+    // search for the tacton we wanna update
+    const tactonResponse = await dbServer.get(`/tactons?id=eq.${id}`);
+    if (tactonResponse.data.length !== 1) {
+      ctx.throw(400, "Invalid id");
+    }
+
+    const oldTactonData = tactonResponse.data[0];
+
+    // check if the tacton is from the user, or the user is an admin
+    if (!ctx.state.user.admin && oldTactonData.user_id !== ctx.state.user.id) {
+      ctx.throw(401, "Authentication Error");
+    }
+
+    // check if we need to update the motorPositions
+    try {
+      if (motorPositionsArray != null) {
+        // do request for the motorpositions
+        await postMotorPositionsTypeValidation(ctx);
+        const motorPositionObject = await postMotorPositions(ctx, true);
+        payload.motor_positions_id = motorPositionObject.id;
+      } else {
+        payload.motor_positions_id = false;
+      }
+    } catch (e) {
+      console.log(e);
+    }
+
+    // create our new Payload based on the payload
+    const newPayload = {
+      title: payload.title === false ? oldTactonData.title : payload.title,
+      description:
+        payload.description === false
+          ? oldTactonData.description
+          : payload.description,
+      libvtp: payload.libvtp === false ? oldTactonData.libvtp : payload.libvtp,
+      motor_positions_id:
+        payload.motor_positions_id === false
+          ? oldTactonData.motor_positions_id
+          : payload.motor_positions_id,
+      last_update_at: new Date(),
+    };
+
+    // do the database request
+    const updatedTactonResponse = await dbServer.patch(
+      `/tactons?id=eq.${id}`,
+      newPayload
+    );
+    ctx.body = updatedTactonResponse.data;
+  }
+);
 
 /**
  * @swagger

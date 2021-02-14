@@ -28,17 +28,7 @@ const stateKey = "redirected";
  *         positions:
  *           type: array
  *           items:
- *             type: object
- *             properties:
- *              x:
- *                type: number
- *                format: float
- *              y:
- *                type: number
- *                format: float
- *              z:
- *                type: number
- *                format: float
+ *             $ref: "#/components/schemas/motorPositionsCombined"
  *     motorPositionRequest:
  *       type: object
  *       properties:
@@ -62,26 +52,46 @@ const stateKey = "redirected";
  *         - y
  *         - z
  *       example:
- *         x: [0.2, 0.33, 0.444, 0.555, 0.666, 0.77, 0.88, 0.999]
- *         y: [0.01, 0.02, 0.3, 0.4, 0.56, 0.78, 0.99, 3.2]
- *         z: [1.5, 2.6, 3.77, 4.78, 5.88, 6.99, 7.2, 8.2]
+ *         x:
+ *           [
+ *           0.12832197525978964,
+ *           -0.08349932660499984,
+ *           -0.13681621172935493,
+ *           0.12098834517427033,
+ *           0.10007102144665972,
+ *           0.10290538053234385,
+ *           -0.04950964600727065,
+ *           -0.021518675788634457
+ *           ]
+ *         y:
+ *           [
+ *           0.7218214843059594,
+ *           1.0978059858427058,
+ *           0.23134485484760914,
+ *           1.4271336159515267,
+ *           1.2197532723926738,
+ *           0.9573107882659158,
+ *           0.8984507847516034,
+ *           1.364175508129114
+ *           ]
+ *         z:
+ *           [
+ *           0.048967545338785,
+ *           0.06086872330418691,
+ *           -0.019713728212142456,
+ *           -0.012528946681072739,
+ *           0.04885960456824545,
+ *           0.04804622165800376,
+ *           0.04869897543784063,
+ *           0.030336090576828845
+ *           ]
  *     motorPositionRequestCombined:
  *       type: object
  *       properties:
  *         positions:
  *           type: array
  *           items:
- *             type: object
- *             properties:
- *              x:
- *                type: number
- *                format: float
- *              y:
- *                type: number
- *                format: float
- *              z:
- *                type: number
- *                format: float
+ *             $ref: "#/components/schemas/motorPositionsCombined"
  *       required:
  *         - positions
  *         - X
@@ -90,12 +100,27 @@ const stateKey = "redirected";
  *       example:
  *         positions:
  *           [
- *           {x: 0.2, y: 0.01, z: 1.5},
- *           {x: 0.33, y: 0.02, z: 2.6},
- *           {x: 0.444, y: 0.3, z: 3.77},
- *           {x: 0.555, y: 0.4, z:  4.78},
+ *           {x: 0.12832197525978964, y: 0.7218214843059594, z: 0.048967545338785},
+ *           {x: -0.08349932660499984, y: 1.0978059858427058, z: 0.06086872330418691},
+ *           {x: -0.13681621172935493, y: 0.23134485484760914, z: -0.019713728212142456},
+ *           {x: 0.12098834517427033, y: 1.4271336159515267, z: -0.012528946681072739},
+ *           {x: 0.10007102144665972, y: 1.2197532723926738, z: 0.04885960456824545},
+ *           {x: 0.10290538053234385, y: 0.9573107882659158, z: 0.04804622165800376},
+ *           {x: -0.04950964600727065, y: 0.8984507847516034, z: 0.04869897543784063},
+ *           {x: -0.021518675788634457, y: 1.364175508129114, z: 0.030336090576828845}
  *           ]
- *
+ *     motorPositionsCombined:
+ *       type: object
+ *       properties:
+ *         x:
+ *           type: number
+ *           format: float
+ *         y:
+ *           type: number
+ *           format: float
+ *         z:
+ *           type: number
+ *           format: float
  * /motorPositions/id/{id}:
  *    get:
  *      description: Get a motor position by the id
