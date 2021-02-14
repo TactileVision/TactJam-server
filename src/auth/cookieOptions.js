@@ -7,12 +7,8 @@ export function getCookeOptions(httpOnly = true) {
     httpOnly: httpOnly, // use it only for requests (can't be used in javascript)
     expires: new Date(getExpirationDate()),
     sameSite: true, // only same side
-    secure: false, // https only - not for development
+    // enable secure cookie for production environment, as well as the domain name
+    secure: config.env === "production", // https only - not for development
   };
-  // enable secure cookie for production environment, as well as the domain name
-  if (config.env === "production") {
-    options.secure = true;
-  }
-
   return options;
 }
