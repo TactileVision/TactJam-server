@@ -29,7 +29,7 @@ const router = new Router({ prefix: "/auth" });
  *           maxLength: 128
  *         password:
  *           type: string
- *           minLength: 8
+ *           minLength: 4
  *           maxLength: 128
  *     "LoginData":
  *       type: object
@@ -84,7 +84,7 @@ router.post("/login", koaBody(), async (ctx) => {
     ctx.request.body.login == null ||
     ctx.request.body.password == null ||
     !validator.isLength(ctx.request.body.login, { min: 4, max: 128 }) ||
-    !validator.isLength(ctx.request.body.password, { min: 8, max: 128 })
+    !validator.isLength(ctx.request.body.password, { min: 4, max: 128 })
   ) {
     ctx.throw(400, "Invalid length of login or password");
   }
@@ -347,11 +347,11 @@ router.post("/forgot", koaBody(), async (ctx) => {
  *                  description: E-Mail needed for password reset.
  *                password:
  *                  type: string
- *                  minLength: 8
+ *                  minLength: 4
  *                  maxLength: 128
  *                password2:
  *                  type: string
- *                  minLength: 8
+ *                  minLength: 4
  *                  maxLength: 128
  *                  description: need to be the same then password
  *      produces:
@@ -379,7 +379,7 @@ router.post("/set/password", koaBody(), async (ctx) => {
     ctx.throw(400, "Invalid email");
   }
 
-  if (!validator.isLength(password, { min: 8, max: 128 })) {
+  if (!validator.isLength(password, { min: 4, max: 128 })) {
     ctx.throw(400, "Too short/long password, please check docs");
   }
 

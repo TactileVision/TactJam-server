@@ -119,11 +119,11 @@ router.get(
  *                  description: E-Mail needed for password reset.
  *                password:
  *                  type: string
- *                  minLength: 8
+ *                  minLength: 4
  *                  maxLength: 128
  *                password2:
  *                  type: string
- *                  minLength: 8
+ *                  minLength: 4
  *                  maxLength: 128
  *                  description: need to be the same then password
  *                name:
@@ -185,8 +185,8 @@ router.post("/register", koaBody(), async (ctx) => {
     !validator.isEmail(email) ||
     !validator.isLength(name, { min: 4, max: 128 }) ||
     !validator.isAlphanumeric(name) ||
-    !validator.isLength(password, { min: 8, max: 128 }) ||
-    !validator.isLength(password2, { min: 8, max: 128 })
+    !validator.isLength(password, { min: 4, max: 128 }) ||
+    !validator.isLength(password2, { min: 4, max: 128 })
   ) {
     ctx.throw(400, "Invalid body parameters");
   }
@@ -466,11 +466,11 @@ router.put(
  *                  maxLength: 128
  *                newPassword:
  *                  type: string
- *                  minLength: 8
+ *                  minLength: 4
  *                  maxLength: 128
  *                newPassword2:
  *                  type: string
- *                  minLength: 8
+ *                  minLength: 4
  *                  maxLength: 128
  *      security:
  *        - cookieAuth: []
@@ -514,7 +514,7 @@ router.patch(
     }
 
     // validate new password
-    if (!validator.isLength(newPassword, { min: 8, max: 128 })) {
+    if (!validator.isLength(newPassword, { min: 4, max: 128 })) {
       ctx.throw(400, "New password is too long / short, see docs");
     }
     // generate new hash
