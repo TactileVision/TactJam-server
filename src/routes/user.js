@@ -111,7 +111,7 @@ router.get(
  *              properties:
  *                username:
  *                  type: string
- *                  minLength: 4
+ *                  minLength: 2
  *                  maxLength: 128
  *                  description: Alpha Numeric only! For login purposes only, does not show anywhere.
  *                email:
@@ -128,9 +128,9 @@ router.get(
  *                  description: need to be the same then password
  *                name:
  *                  type: string
- *                  minLength: 4
+ *                  minLength: 2
  *                  maxLength: 128
- *                  description: Alpha Numeric only! Visible name on the platform.
+ *                  description: Visible name on the platform (does only allow characters, numbers, spaces and `-`).
  *              required:
  *                - username
  *                - email
@@ -140,8 +140,8 @@ router.get(
  *            example:
  *              username: username123456
  *              email: username123456@mail.com
- *              password:
- *              password2:
+ *              password: 1234
+ *              password2: 1234
  *              name: Miyako
  *      produces:
  *        - application/json
@@ -179,16 +179,42 @@ router.post("/register", koaBody(), async (ctx) => {
   }
 
   // check input
+  // username
   if (
-    !validator.isLength(username, { min: 4, max: 128 }) ||
-    !validator.isAlphanumeric(username) ||
-    !validator.isEmail(email) ||
-    !validator.isLength(name, { min: 4, max: 128 }) ||
-    !validator.isAlphanumeric(name) ||
+    !validator.isLength(username, { min: 2, max: 128 }) ||
+    !validator.isAlpha(username, "en-US", { ignore: "1234567890 -" })
+  ) {
+    ctx.throw(
+      400,
+      "Invalid username (min 2, max 128, Alphanumeric only. Spaces and '-' are allowed"
+    );
+  }
+
+  // email
+  if (!validator.isEmail(email)) {
+    ctx.throw(
+      400,
+      "Invalid e-mail (needs to be formated like this: '__@__.__'"
+    );
+  }
+
+  // name
+  if (
+    !validator.isLength(name, { min: 2, max: 128 }) ||
+    !validator.isAlpha(name, "en-US", { ignore: "1234567890 -" })
+  ) {
+    ctx.throw(
+      400,
+      "Invalid name (min 2, max 128, Alphanumeric only. Spaces and '-' are allowed"
+    );
+  }
+
+  // password
+  if (
     !validator.isLength(password, { min: 4, max: 128 }) ||
     !validator.isLength(password2, { min: 4, max: 128 })
   ) {
-    ctx.throw(400, "Invalid body parameters");
+    ctx.throw(400, "Invalid password length (min: 4, max: 128)");
   }
 
   // check if both passwords are the same
@@ -281,7 +307,7 @@ router.post("/register", koaBody(), async (ctx) => {
  *              properties:
  *                username:
  *                  type: string
- *                  minLength: 4
+ *                  minLength: 2
  *                  maxLength: 128
  *                  description: Alpha Numeric only! For login purposes only, does not show anywhere.
  *                email:
@@ -293,7 +319,7 @@ router.post("/register", koaBody(), async (ctx) => {
  *                  format: uuid
  *                name:
  *                  type: string
- *                  minLength: 4
+ *                  minLength: 2
  *                  maxLength: 128
  *                  description: Alpha Numeric only! Visible name on the platform.
  *            example:
@@ -351,27 +377,36 @@ router.put(
     // check username
     if (username != null) {
       if (
-        !validator.isLength(username, { min: 4, max: 128 }) ||
-        !validator.isAlphanumeric(username)
+        !validator.isLength(username, { min: 2, max: 128 }) ||
+        !validator.isAlpha(username, "en-US", { ignore: "1234567890 -" })
       ) {
-        ctx.throw(400, "Invalid Username");
+        ctx.throw(
+          400,
+          "Invalid username (min 2, max 128, Alphanumeric only. Spaces and '-' are allowed"
+        );
       }
     }
 
     // check email
     if (email != null) {
       if (!validator.isEmail(email)) {
-        ctx.throw(400, "Invalid email");
+        ctx.throw(
+          400,
+          "Invalid e-mail (needs to be formated like this: '__@__.__'"
+        );
       }
     }
 
     // check name
     if (name != null) {
       if (
-        !validator.isLength(name, { min: 4, max: 128 }) ||
-        !validator.isAlphanumeric(name)
+        !validator.isLength(name, { min: 2, max: 128 }) ||
+        !validator.isAlpha(name, "en-US", { ignore: "1234567890 -" })
       ) {
-        ctx.throw(400, "Invalid name");
+        ctx.throw(
+          400,
+          "Invalid name (min 2, max 128, Alphanumeric only. Spaces and '-' are allowed"
+        );
       }
     }
 
@@ -462,7 +497,7 @@ router.put(
  *              properties:
  *                oldPassword:
  *                  type: string
- *                  minLength: 8
+ *                  minLength: 4
  *                  maxLength: 128
  *                newPassword:
  *                  type: string

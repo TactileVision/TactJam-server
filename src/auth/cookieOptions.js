@@ -6,7 +6,7 @@ export function getCookeOptions(httpOnly = true) {
     signed: true, // signed cookie
     httpOnly: httpOnly, // use it only for requests (can't be used in javascript)
     expires: new Date(getExpirationDate()),
-    sameSite: true, // only same side
+    sameSite: false, // this should be TRUE, but electron does have a bug where it doesnt accept it otherwise
     // enable secure cookie for production environment, as well as the domain name
     secure: config.env === "production", // https only - not for development
   };

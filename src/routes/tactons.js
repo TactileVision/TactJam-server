@@ -179,8 +179,6 @@ router.get("/own", jwtAuth(jwtAuthOptions), permission(), async (ctx) => {
  *                - title
  *                - libvtp
  *                - motorPositions
- *                - tags
- *                - bodyTags
  *            example:
  *              title: "Example Tacton"
  *              description: "This is the example tacton"
@@ -246,17 +244,17 @@ router.post(
     // check if we got the needed variables
     if (
       title == null ||
-      description == null ||
       libvtpHexString == null ||
-      motorPositionsArray == null ||
-      tagsArray == null ||
-      bodytagsArray == null
+      motorPositionsArray == null
     ) {
       ctx.throw(400, "missing body parameters");
     }
     // trim spaces before and after
     title = validator.trim(title);
-    description = validator.trim(description);
+
+    if (description != null) {
+      description = validator.trim(description);
+    }
 
     // check input from those variables we dont check in other endpoints
     if (
@@ -266,21 +264,25 @@ router.post(
       ctx.throw(400, "Invalid title");
     }
 
-    if (!Array.isArray(tagsArray)) {
-      ctx.throw(400, "tags must be an array");
-    }
-
-    if (!Array.isArray(bodytagsArray)) {
-      ctx.throw(400, "bodyTags must be an array");
-    }
-
     // do request for the motorpositions
     await postMotorPositionsTypeValidation(ctx);
     const motorPositionObject = await postMotorPositions(ctx, true);
 
-    // create tags
-    tags = await createAndReturnTags(ctx, tagsArray);
-    bodyTags = await createAndReturnTags(ctx, bodytagsArray, true);
+    if (tagsArray != null) {
+      if (!Array.isArray(tagsArray)) {
+        ctx.throw(400, "tags must be an array");
+      }
+      // create tags
+      tags = await createAndReturnTags(ctx, tagsArray);
+    }
+
+    if (bodytagsArray != null) {
+      if (!Array.isArray(bodytagsArray)) {
+        ctx.throw(400, "bodyTags must be an array");
+      }
+      // create bodytags
+      bodyTags = await createAndReturnTags(ctx, bodytagsArray, true);
+    }
 
     // we have created the motor position, the tags and the bodytags
     // now we can send the tacton to the database
@@ -295,12 +297,16 @@ router.post(
     const tactonResponse = await dbServer.post("/tactons", payload);
     const newTacton = tactonResponse.data[0];
 
-    // after adding the payload we need to add the link between tacton and tags / bodytags
-    // start with tags
-    await linkTags(newTacton.id, tags);
+    if (tagsArray != null) {
+      // after adding the payload we need to add the link between tacton and tags / bodytags
+      // start with tags
+      await linkTags(newTacton.id, tags);
+    }
 
-    // now add bodytags
-    await linkTags(newTacton.id, bodyTags, true);
+    if (bodytagsArray != null) {
+      // now add bodytags
+      await linkTags(newTacton.id, bodyTags, true);
+    }
 
     // return the tacton to the user
     ctx.body = newTacton;
