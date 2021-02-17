@@ -321,7 +321,7 @@ router.post(
  *        This endpoints adds new (body)tags to the provided tacton.
  *        Assigns one or multiple (body)tags at the same time.
  *        It does create the (body)tags if they're not available.
- *        You can only add things to your own tactons (except admins).
+ *        You can only add (body)tags to your own tactons (except admins).
  *      summary: Add (body)tags to tacton
  *      operationId: addBodyTagsToTacton
  *      tags:
@@ -431,6 +431,121 @@ router.post(
     }
 
     ctx.status = 201;
+  }
+);
+
+/**
+ * @swagger
+ * /tactons/remove/:
+ *    post:
+ *      description: >
+ *        This endpoints removes (body)tags from the provided tacton.
+ *        Deletes the link of one or multiple (body)tags at the same time.
+ *        You can only remove (body)tags from your own tactons (except admins).
+ *      summary: Remove (body)tags from tacton
+ *      operationId: removeBodyTagsFromTacton
+ *      tags:
+ *        - tactons
+ *      requestBody:
+ *        required: true
+ *        description: A JSON object containing the information needed for the tag
+ *        content:
+ *          application/json:
+ *            schema:
+ *              type: object
+ *              properties:
+ *                id:
+ *                  type: string
+ *                  format: uuid
+ *                tags:
+ *                  type: array
+ *                  items:
+ *                    $ref: "#/components/schemas/tagPostRequest"
+ *                bodyTags:
+ *                  type: array
+ *                  items:
+ *                    $ref: "#/components/schemas/bodyTagsRequest"
+ *              required:
+ *                - id
+ *            example:
+ *              id: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+ *              tags:
+ *                [
+ *                {name: "Something Else"},
+ *                {name: "exampleTag 2"},
+ *                {name: "TestTag 2"}
+ *                ]
+ *              bodyTags:
+ *                [
+ *                {name: "Left Hand"},
+ *                {name: "Right Hand"},
+ *                {name: "Torso"}
+ *                ]
+ *      produces:
+ *        - application/json
+ *      parameters: []
+ *      security:
+ *        - cookieAuth: []
+ *      responses:
+ *        204:
+ *          description: >
+ *            Link of the (Body)tags have been removed.
+ *        400:
+ *          description: Invalid request
+ */
+router.post(
+  "/remove",
+  jwtAuth(jwtAuthOptions),
+  permission(),
+  koaBody(),
+  async (ctx) => {
+    const id = ctx.request.body.id;
+    const requestedTags = ctx.request.body.tags;
+    const requestedBodytags = ctx.request.body.bodyTags;
+    // check id
+    if (id == null) {
+      ctx.throw(400, "Id missing");
+    }
+    if (!validator.isUUID(id)) {
+      ctx.throw(400, "Id is not an UUID");
+    }
+
+    // check if we got at least one array to work with
+    if (requestedTags == null && requestedBodytags == null) {
+      ctx.throw(400, "tags or bodytags needed");
+    }
+
+    if (!Array.isArray(requestedTags) && !Array.isArray(requestedBodytags)) {
+      ctx.throw(400, "tags or bodytags need to be an array");
+    }
+
+    // get our tacton, to check if we have it
+    const tactonResponse = await dbServer.get(`/tactons?id=eq.${id}`);
+    if (tactonResponse.data.length !== 1) {
+      ctx.throw(400, "invalid id; no unique tacton found");
+    }
+    const tacton = tactonResponse.data[0];
+
+    // check if the user is not an admin
+    if (!ctx.state.user.admin && tacton.user_id !== ctx.state.user.id) {
+      ctx.throw(401, "Authentication Error");
+    }
+
+    // user has permission to do this, continue
+    // delete the link of the Tags
+    if (requestedTags != null && Array.isArray(requestedTags)) {
+      if (requestedTags.length > 0) {
+        await getTagsByNameAndRemoveLink(requestedTags, tacton.id);
+      }
+    }
+
+    if (requestedBodytags != null && Array.isArray(requestedBodytags)) {
+      if (requestedBodytags.length > 0) {
+        await getTagsByNameAndRemoveLink(requestedBodytags, tacton.id, true);
+      }
+    }
+
+    ctx.status = 204;
   }
 );
 
@@ -728,6 +843,45 @@ async function createAndReturnTags(ctx, t, bodyTags = false) {
   responseArray.forEach((r) => arrayToReturn.push(r[0]));
 
   return arrayToReturn;
+}
+
+async function getTagsByNameAndRemoveLink(t, id, bodyTags = false) {
+  // do request for each tag, create an array of promises
+  const tagsPromiseArray = [];
+  t.forEach((element) => {
+    tagsPromiseArray.push(
+      bodyTags
+        ? dbServer.get(`/body_tags?name=eq.${element.name}`)
+        : dbServer.get(`/tags?name=eq.${element.name}`)
+    );
+  });
+
+  // resolve all; Will return array in array
+  const responseArray = await Promise.all(tagsPromiseArray);
+
+  // create an array of promises to resolve
+  const linkPromiseArray = [];
+  responseArray.forEach((r) => {
+    if (r.data.length === 1) {
+      linkPromiseArray.push(
+        bodyTags
+          ? dbServer.delete(
+              `/tacton_bodytag_link?and=(tacton_id.eq.${id},bodytag_id.eq.${r.data[0].id})`
+            )
+          : dbServer.delete(
+              `/tacton_tag_link?and=(tacton_id.eq.${id},tag_id.eq.${r.data[0].id})`
+            )
+      );
+    }
+  });
+
+  if (linkPromiseArray.length === 0) {
+    return;
+  }
+
+  const deletedArray = await Promise.all(linkPromiseArray);
+
+  return deletedArray;
 }
 
 async function linkTags(tactonId, tags, bodyTags = false) {
