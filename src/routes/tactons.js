@@ -86,7 +86,8 @@ const router = new Router({ prefix: "/tactons" });
  *      responses:
  *        200:
  *          description: >
- *            Returns an array with 20 tactons if there are 20. Newest ones will be listed first.
+ *            Returns an array with 50 tactons if there are 50.
+ *            Newest ones will be listed first.
  *          content:
  *            application/json:
  *              schema:
@@ -95,6 +96,47 @@ const router = new Router({ prefix: "/tactons" });
 router.get("/", async (ctx) => {
   // get data from db
   const response = await dbServer.get("/gettactons");
+  // return to user
+  ctx.body = await createResponseData(response.data);
+});
+
+/**
+ * @swagger
+ * /tactons/search/{term}:
+ *    get:
+ *      description: >
+ *        Search tactons by a term.
+ *        (body)tag names and the title are used for the search.
+ *      summary: Search Tactons By Term
+ *      operationId: searchTactonsByTerm
+ *      tags:
+ *        - tactons
+ *      parameters:
+ *      - in: path
+ *        name: term
+ *        schema:
+ *          type: string
+ *        required: true
+ *        description: something you wanna search
+ *      produces:
+ *        - application/json
+ *      security: []
+ *      responses:
+ *        200:
+ *          description: >
+ *            Returns an array with max 50 tactons matching the term.
+ *            Newest ones will be listed first.
+ *          content:
+ *            application/json:
+ *              schema:
+ *                $ref: "#/components/schemas/fullTactonResponse"
+ */
+router.get("/search/:term", async (ctx) => {
+  // get data from db
+  const response = await dbServer.get(
+    `/rpc/searchTactons?term=${ctx.params.term}`
+  );
+
   // return to user
   ctx.body = await createResponseData(response.data);
 });

@@ -279,7 +279,7 @@ FROM tactons t
          JOIN motor_positions mp ON t.motor_positions_id = mp.id
 GROUP BY t.id, u.id, mp.id
 ORDER BY t.last_update_at DESC
-LIMIT 20;
+LIMIT 50;
 
 create function "getTactonsById"(requestid text)
     returns TABLE
@@ -298,17 +298,17 @@ create function "getTactonsById"(requestid text)
 as
 $$
 BEGIN
-    return query
-        select t.id,
-               t.title,
-               t.description,
-               t.libvtp,
-               t.last_update_at,
-               json_build_object('name', u.name, 'id', t.id)                                                 as userobject,
-               json_build_object('id', mp.id, 'x', mp.x, 'y', mp.y, 'z', mp.z)                               as motorpositions,
-               array_agg(json_build_object('name', tags.name, 'id', tags.id, 'creator_id', tags.creator_id)) as tags,
-               array_agg(json_build_object('name', bodyTags.name, 'id', bodyTags.id, 'creator_id',
-                                           bodyTags.creator_id))                                             as bodytags
+    return query execute '
+        select
+            t.id,
+            t.title,
+            t.description,
+            t.libvtp,
+            t.last_update_at,
+            json_build_object($1, u.name, $2, t.id) as userobject,
+            json_build_object($2, mp.id, $3, mp.x, $4, mp.y, $5, mp.z) as motorpositions,
+            array_agg(json_build_object($1, tags.name, $2, tags.id, $6, tags.creator_id)) as tags,
+            array_agg(json_build_object($1, bodyTags.name, $2, bodyTags.id, $6, bodyTags.creator_id)) as bodytags
         from tactons t
                  JOIN tacton_tag_link tlink on t.id = tlink.tacton_id
                  JOIN tags on tlink.tag_id = tags.id
@@ -316,9 +316,58 @@ BEGIN
                  JOIN body_tags bodyTags on btlink.bodytag_id = bodyTags.id
                  JOIN users u on t.user_id = u.id
                  JOIN motor_positions mp on t.motor_positions_id = mp.id
-        where t.user_id = requestid::uuid
+        where t.user_id=$7::uuid
         group by t.id, u.id, mp.id
-        order by t.last_update_at desc;
-end;
+        order by t.last_update_at desc
+        '
+        using 'name','id', 'x', 'y', 'z', 'creator_id', requestid;
+end
+$$;
+
+create function "searchTactons"(term text)
+    returns TABLE
+            (
+                id             uuid,
+                title          text,
+                description    text,
+                libvtp         text,
+                last_update_at timestamp with time zone,
+                userobject     json,
+                motorpositions json,
+                tags           json[],
+                bodytags       json[]
+            )
+    language plpgsql
+as
+$$
+BEGIN
+    return query execute '
+        select
+            t.id,
+            t.title,
+            t.description,
+            t.libvtp,
+            t.last_update_at,
+            json_build_object($1, u.name, $2, t.id) as userobject,
+            json_build_object($2, mp.id, $3, mp.x, $4, mp.y, $5, mp.z) as motorpositions,
+            array_agg(json_build_object($1, tags.name, $2, tags.id, $6, tags.creator_id)) as tags,
+            array_agg(json_build_object($1, bodyTags.name, $2, bodyTags.id, $6, bodyTags.creator_id)) as bodytags
+        from tactons t
+            JOIN tacton_tag_link tlink on t.id = tlink.tacton_id
+            JOIN tags on tlink.tag_id = tags.id
+            JOIN tacton_bodytag_link btlink on t.id = btlink.tacton_id
+            JOIN body_tags bodyTags on btlink.bodytag_id = bodyTags.id
+            JOIN users u on t.user_id = u.id
+            JOIN motor_positions mp on t.motor_positions_id = mp.id
+        where
+            t.title iLIKE $7 OR
+            tags.name iLIKE $7 OR
+            bodyTags.name iLIKE $7
+        group by t.id, u.id, mp.id
+        order by t.last_update_at desc
+        LIMIT 50
+        '
+        using 'name','id', 'x', 'y', 'z', 'creator_id', format('%%%s%%', term);
+end
 $$;
 
