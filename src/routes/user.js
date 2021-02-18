@@ -140,8 +140,8 @@ router.get(
  *            example:
  *              username: username123456
  *              email: username123456@mail.com
- *              password: 1234
- *              password2: 1234
+ *              password: abc1234
+ *              password2: abc1234
  *              name: Miyako
  *      produces:
  *        - application/json
@@ -182,7 +182,7 @@ router.post("/register", koaBody(), async (ctx) => {
   // username
   if (
     !validator.isLength(username, { min: 2, max: 128 }) ||
-    !validator.isAlpha(username, "en-US", { ignore: "1234567890 -" })
+    !validator.isAlpha(username, "en-US", { ignore: "1234567890" })
   ) {
     ctx.throw(
       400,
@@ -378,7 +378,7 @@ router.put(
     if (username != null) {
       if (
         !validator.isLength(username, { min: 2, max: 128 }) ||
-        !validator.isAlpha(username, "en-US", { ignore: "1234567890 -" })
+        !validator.isAlpha(username, "en-US", { ignore: "1234567890" })
       ) {
         ctx.throw(
           400,
@@ -431,9 +431,9 @@ router.put(
     }
 
     const patchObj = {
-      username,
-      name,
-      teamId,
+      username: validator.trim(username).toLowerCase(),
+      name: name,
+      teamId: teamId,
       updated_at: new Date(),
     };
 
@@ -633,6 +633,7 @@ export default router;
 // ---- helper functions ----
 // function to check if username and email is unique
 async function validateUniqueValues(ctx, username, email) {
+  username = validator.trim(username).toLowerCase();
   let queryString = "/users?or=(";
 
   if (username != null) {
