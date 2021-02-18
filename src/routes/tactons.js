@@ -314,16 +314,20 @@ router.post(
       if (!Array.isArray(tagsArray)) {
         ctx.throw(400, "tags must be an array");
       }
-      // create tags
-      tags = await createAndReturnTags(ctx, tagsArray);
+      if (tagsArray.length > 0) {
+        // create tags
+        tags = await createAndReturnTags(ctx, tagsArray);
+      }
     }
 
     if (bodytagsArray != null) {
       if (!Array.isArray(bodytagsArray)) {
         ctx.throw(400, "bodyTags must be an array");
       }
-      // create bodytags
-      bodyTags = await createAndReturnTags(ctx, bodytagsArray, true);
+      if (bodytagsArray.length > 0) {
+        // create bodytags
+        bodyTags = await createAndReturnTags(ctx, bodytagsArray, true);
+      }
     }
 
     // we have created the motor position, the tags and the bodytags
@@ -340,14 +344,18 @@ router.post(
     const newTacton = tactonResponse.data[0];
 
     if (tagsArray != null) {
-      // after adding the payload we need to add the link between tacton and tags / bodytags
-      // start with tags
-      await linkTags(newTacton.id, tags);
+      if (tagsArray.length > 0) {
+        // after adding the payload we need to add the link between tacton and tags / bodytags
+        // start with tags
+        await linkTags(newTacton.id, tags);
+      }
     }
 
     if (bodytagsArray != null) {
-      // now add bodytags
-      await linkTags(newTacton.id, bodyTags, true);
+      if (bodytagsArray.length > 0) {
+        // now add bodytags
+        await linkTags(newTacton.id, bodyTags, true);
+      }
     }
 
     // return the tacton to the user
