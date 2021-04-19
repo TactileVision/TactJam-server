@@ -311,10 +311,10 @@ BEGIN
             array_agg(json_build_object($1, tags.name, $2, tags.id, $6, tags.creator_id)) as tags,
             array_agg(json_build_object($1, bodyTags.name, $2, bodyTags.id, $6, bodyTags.creator_id)) as bodytags
         from tactons t
-                 JOIN tacton_tag_link tlink on t.id = tlink.tacton_id
-                 JOIN tags on tlink.tag_id = tags.id
-                 JOIN tacton_bodytag_link btlink on t.id = btlink.tacton_id
-                 JOIN body_tags bodyTags on btlink.bodytag_id = bodyTags.id
+                 LEFT JOIN tacton_tag_link tlink on t.id = tlink.tacton_id
+                 LEFT JOIN tags on tlink.tag_id = tags.id
+                 LEFT JOIN tacton_bodytag_link btlink on t.id = btlink.tacton_id
+                 LEFT JOIN body_tags bodyTags on btlink.bodytag_id = bodyTags.id
                  JOIN users u on t.user_id = u.id
                  JOIN motor_positions mp on t.motor_positions_id = mp.id
         where t.user_id=$7::uuid
@@ -354,10 +354,10 @@ BEGIN
             array_agg(json_build_object($1, tags.name, $2, tags.id, $6, tags.creator_id)) as tags,
             array_agg(json_build_object($1, bodyTags.name, $2, bodyTags.id, $6, bodyTags.creator_id)) as bodytags
         from tactons t
-            JOIN tacton_tag_link tlink on t.id = tlink.tacton_id
-            JOIN tags on tlink.tag_id = tags.id
-            JOIN tacton_bodytag_link btlink on t.id = btlink.tacton_id
-            JOIN body_tags bodyTags on btlink.bodytag_id = bodyTags.id
+            LEFT JOIN tacton_tag_link tlink on t.id = tlink.tacton_id
+            LEFT JOIN tags on tlink.tag_id = tags.id
+            LEFT JOIN tacton_bodytag_link btlink on t.id = btlink.tacton_id
+            LEFT JOIN body_tags bodyTags on btlink.bodytag_id = bodyTags.id
             JOIN users u on t.user_id = u.id
             JOIN motor_positions mp on t.motor_positions_id = mp.id
         where
