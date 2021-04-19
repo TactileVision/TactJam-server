@@ -258,7 +258,8 @@ comment on column tacton_bodytag_link.tacton_id is 'foreign key of table tactons
 create unique index tacton_bodytag_link_id_uindex
     on tacton_bodytag_link (id);
 
-create view gettactons (id, title, description, libvtp, last_update_at, "user", motorpositions, tags, bodytags) as
+create or replace view gettactons
+            (id, title, description, libvtp, last_update_at, "user", motorpositions, tags, bodytags) as
 SELECT t.id,
        t.title,
        t.description,
@@ -271,17 +272,17 @@ SELECT t.id,
        array_agg(json_build_object('name', bodytags.name, 'id', bodytags.id, 'creator_id',
                                    bodytags.creator_id))               AS bodytags
 FROM tactons t
-         JOIN tacton_tag_link tlink ON t.id = tlink.tacton_id
-         JOIN tags ON tlink.tag_id = tags.id
-         JOIN tacton_bodytag_link btlink ON t.id = btlink.tacton_id
-         JOIN body_tags bodytags ON btlink.bodytag_id = bodytags.id
+         LEFT JOIN tacton_tag_link tlink ON t.id = tlink.tacton_id
+         LEFT JOIN tags ON tlink.tag_id = tags.id
+         LEFT JOIN tacton_bodytag_link btlink ON t.id = btlink.tacton_id
+         LEFT JOIN body_tags bodytags ON btlink.bodytag_id = bodytags.id
          JOIN users u ON t.user_id = u.id
          JOIN motor_positions mp ON t.motor_positions_id = mp.id
 GROUP BY t.id, u.id, mp.id
 ORDER BY t.last_update_at DESC
 LIMIT 50;
 
-create function "getTactonsById"(requestid text)
+create or replace function "getTactonsById"(requestid text)
     returns TABLE
             (
                 id             uuid,
@@ -324,7 +325,7 @@ BEGIN
 end
 $$;
 
-create function "searchTactons"(term text)
+create or replace function "searchTactons"(term text)
     returns TABLE
             (
                 id             uuid,
