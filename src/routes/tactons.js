@@ -74,7 +74,7 @@ const router = new Router({ prefix: "/tactons" });
  *
  * /tactons:
  *    get:
- *      description: Get latest 20 tactons
+ *      description: Get latest 50 tactons
  *      summary: get latest tactons
  *      operationId: getTwentyTactons
  *      tags:
@@ -469,15 +469,20 @@ router.post(
 
     // user has permission to do this, continue
     // create and or get the tags
-    if (requestedTags.length > 0) {
-      tagsToAdd = await createAndReturnTags(ctx, requestedTags);
-      // start with tags
-      await linkTags(tacton.id, tagsToAdd);
+    if (Array.isArray(requestedTags)) {
+      if (requestedTags.length > 0) {
+        tagsToAdd = await createAndReturnTags(ctx, requestedTags);
+        // start with tags
+        await linkTags(tacton.id, tagsToAdd);
+      }
     }
-    if (requestedBodytags.length > 0) {
-      bodytagsToAdd = await createAndReturnTags(ctx, requestedBodytags, true);
-      // now add bodytags
-      await linkTags(tacton.id, bodytagsToAdd, true);
+
+    if (Array.isArray(requestedBodytags)) {
+      if (requestedBodytags.length > 0) {
+        bodytagsToAdd = await createAndReturnTags(ctx, requestedBodytags, true);
+        // now add bodytags
+        await linkTags(tacton.id, bodytagsToAdd, true);
+      }
     }
 
     ctx.status = 201;
@@ -857,8 +862,32 @@ async function createResponseData(data) {
 
     // remove duplicates, adjust motorposition output
     for (let i = 0; i < data.length; i++) {
+      // filter duplicates from the tags
       data[i].tags = filterArrayById(data[i].tags);
+
+      // check if we have an empty tag entry (database can return an entry with null if there is no tag)
+      // it will return an array with exact one entry then
+      if (data[i].tags.length === 1) {
+        // since there can be an entry with one tag as well, we need to check if the the id/name/creator_id is null
+        if (data[i].tags[0].id === null) {
+          // this entry is empty, so we can assign an empty array to the tacton
+          data[i].tags = [];
+        }
+      }
+
+      // filter duplicates from the bodytags
       data[i].bodytags = filterArrayById(data[i].bodytags);
+      // check if we have an empty bodytag entry (database can return an entry with null if there is no bodytag)
+      // it will return an array with exact one entry then
+      if (data[i].bodytags.length === 1) {
+        // since there can be an entry with one tag as well, we need to check if the the id/name/creator_id is null
+        if (data[i].bodytags[0].id === null) {
+          // this entry is empty, so we can assign an empty array to the tacton
+          data[i].bodytags = [];
+        }
+      }
+
+      // convert / map the motorpositions output
       data[i].motorpositions = mapOutput(data[i].motorpositions);
 
       if (i === data.length - 1) {
