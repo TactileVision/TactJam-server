@@ -17,6 +17,8 @@ import { bodyTagsPost } from "./bodyTags.js";
 
 const router = new Router({ prefix: "/tactons" });
 
+const ignoreCharacters = "1234567890 -_";
+
 /**
  * @swagger
  * components:
@@ -200,7 +202,7 @@ router.get("/own", jwtAuth(jwtAuthOptions), permission(), async (ctx) => {
  *                  type: string
  *                  minLength: 2
  *                  maxLength: 128
- *                  description: Alpha Numeric only!
+ *                  description: Alpha Numeric, space, - and _ are allowed
  *                description:
  *                  type: string
  *                libvtp:
@@ -301,7 +303,7 @@ router.post(
     // check input from those variables we dont check in other endpoints
     if (
       !validator.isLength(title, { min: 2, max: 128 }) ||
-      !validator.isAlpha(title, "en-US", { ignore: "1234567890 -" })
+      !validator.isAlpha(title, "en-US", { ignore: ignoreCharacters })
     ) {
       ctx.throw(400, "Invalid title");
     }
@@ -635,7 +637,7 @@ router.post(
  *                  type: string
  *                  minLength: 2
  *                  maxLength: 128
- *                  description: Alpha Numeric only!
+ *                  description: Alpha Numeric, space, - and _ are allowed
  *                description:
  *                  type: string
  *                libvtp:
@@ -709,7 +711,7 @@ router.patch(
       // check length/characters
       if (
         !validator.isLength(title, { min: 2, max: 128 }) ||
-        !validator.isAlpha(title, "en-US", { ignore: "1234567890 -" })
+        !validator.isAlpha(title, "en-US", { ignore: ignoreCharacters })
       ) {
         ctx.throw(400, "Invalid title");
       }
