@@ -152,6 +152,9 @@ router.get("/search/name/:name", async (ctx) => {
   ) {
     ctx.throw(400, "Invalid name");
   }
+  // convert to lowercase
+  tagName = tagName.toLowerCase();
+
   // get data from db
   const response = await dbServer.get(`/tags?name=eq.${tagName}`);
   // check if there is one tag
@@ -234,6 +237,9 @@ export async function tagsPost(ctx, returnsValue = false, n = "") {
   ) {
     ctx.throw(400, "Invalid name or length");
   }
+
+  // convert to lowercase
+  name = name.toLowerCase();
 
   const validation = await validateUniqueName(name);
   if (!validation.valid) {
@@ -336,6 +342,9 @@ router.patch(
     ) {
       ctx.throw(400, "Invalid name or length");
     }
+
+    // convert to lowercase
+    name = name.toLowerCase();
 
     // find our entry
     const entryResponse = await dbServer.get(`/tags?id=eq.${tagId}`);

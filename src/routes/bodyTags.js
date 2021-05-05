@@ -153,6 +153,10 @@ router.get("/search/name/:name", async (ctx) => {
   ) {
     ctx.throw(400, "Invalid name");
   }
+
+  // convert to lowercase
+  bodyTagName = bodyTagName.toLowerCase();
+
   // get data from db
   const response = await dbServer.get(`/body_tags?name=eq.${bodyTagName}`);
   // check if there is one bodyTag
@@ -234,6 +238,9 @@ export async function bodyTagsPost(ctx, returnsValue = false, n = "") {
   ) {
     ctx.throw(400, "Invalid name or length");
   }
+
+  // convert to lowercase
+  name = name.toLowerCase();
 
   const validation = await validateUniqueBodytagName(name);
   if (!validation.valid) {
@@ -336,6 +343,9 @@ router.patch(
     ) {
       ctx.throw(400, "Invalid name or length");
     }
+
+    // convert to lowercase
+    name = name.toLowerCase();
 
     // find our entry
     const entryResponse = await dbServer.get(`/body_tags?id=eq.${bodyTagId}`);
